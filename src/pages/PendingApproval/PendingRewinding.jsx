@@ -12,7 +12,7 @@ export default function PendingRewinding({ token }) {
 
   const fetchRequests = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/approvals/rewinding/pending', {
+    fetch('/api/approvals/rewinding/pending', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -30,7 +30,7 @@ export default function PendingRewinding({ token }) {
   const handleApprove = (id) => {
     if (!window.confirm('আপনি কি এই রি-ওয়াইন্ডিং আবেদনটি অনুমোদন করতে চান?')) return;
 
-    fetch(`http://localhost:5000/api/approvals/rewinding/${id}/approve`, {
+    fetch(`/api/approvals/rewinding/${id}/approve`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -49,7 +49,7 @@ export default function PendingRewinding({ token }) {
   const handleReject = (id) => {
     if (!window.confirm('আপনি কি এই রি-ওয়াইন্ডিং আবেদনটি বাতিল করতে চান?')) return;
 
-    fetch(`http://localhost:5000/api/approvals/rewinding/${id}/reject`, {
+    fetch(`/api/approvals/rewinding/${id}/reject`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` }
     })

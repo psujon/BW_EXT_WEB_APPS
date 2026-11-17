@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   Home, Layers, UserCheck, Bookmark, ListChecks, DollarSign, Truck, ShoppingBag,
-  Gauge, Edit3, Eye, Settings, Users, Lock, Database, ChevronDown, Palette, Building2, ChevronLeft, Clock, RefreshCw, FileText, BarChart2
+  Gauge, Edit3, Eye, Settings, Users, Lock, Database, ChevronDown, Palette, Building2, ChevronLeft, Clock, RefreshCw, FileText, BarChart2, KeyRound
 } from 'lucide-react';
 
 export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen }) {
@@ -274,7 +274,7 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
           <div className="space-y-1">
             <div 
               className={getGroupHeaderClass(isGroupActive([
-                '/dashboard/user', '/dashboard/user-permission', '/dashboard/section'
+                '/dashboard/user', '/dashboard/user-permission', '/dashboard/change-password', '/dashboard/section', '/dashboard/company-profile'
               ]))}
               onClick={() => toggleMenu('settings')}
             >
@@ -303,6 +303,10 @@ export default function Sidebar({ permissions, user, sidebarOpen, setSidebarOpen
                   <span>ইউজার পারমিশন</span>
                 </NavLink>
               )}
+              <NavLink to="/dashboard/change-password" className={({ isActive }) => getMenuItemClass(isActive)}>
+                <KeyRound size={16} />
+                <span>পাসওয়ার্ড পরিবর্তন</span>
+              </NavLink>
               {hasPermission('section') && (
                 <NavLink to="/dashboard/section" className={({ isActive }) => getMenuItemClass(isActive)}>
                   <Layers size={16} />

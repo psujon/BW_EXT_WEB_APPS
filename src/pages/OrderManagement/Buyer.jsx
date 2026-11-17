@@ -35,7 +35,7 @@ export default function Buyer({ token }) {
 
   const fetchBuyers = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/buyers', {
+    fetch('/api/buyers', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -80,7 +80,7 @@ export default function Buyer({ token }) {
 
     if (editingId !== null) {
       // Update DB
-      fetch(`http://localhost:5000/api/buyers/${editingId}`, {
+      fetch(`/api/buyers/${editingId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export default function Buyer({ token }) {
         });
     } else {
       // Create DB
-      fetch('http://localhost:5000/api/buyers', {
+      fetch('/api/buyers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +156,7 @@ export default function Buyer({ token }) {
 
   const handleDelete = (id) => {
     if (window.confirm('আপনি কি এই বায়ারটি ডিলিট করতে চান?')) {
-      fetch(`http://localhost:5000/api/buyers/${id}`, {
+      fetch(`/api/buyers/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })

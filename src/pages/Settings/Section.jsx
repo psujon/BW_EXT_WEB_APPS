@@ -17,7 +17,7 @@ export default function Section({ token }) {
 
   const fetchSections = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/sections', {
+    fetch('/api/sections', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -38,7 +38,7 @@ export default function Section({ token }) {
     const payload = { name, code, status };
 
     if (editingId !== null) {
-      fetch(`http://localhost:5000/api/sections/${editingId}`, {
+      fetch(`/api/sections/${editingId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +53,7 @@ export default function Section({ token }) {
         })
         .catch(err => alert(err.message));
     } else {
-      fetch('http://localhost:5000/api/sections', {
+      fetch('/api/sections', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ export default function Section({ token }) {
 
   const handleDelete = (id) => {
     if (window.confirm('আপনি কি এই সেকশনটি ডিলিট করতে চান?')) {
-      fetch(`http://localhost:5000/api/sections/${id}`, {
+      fetch(`/api/sections/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })

@@ -126,19 +126,7 @@ export default function BuyerOrderInfo({ token }) {
 
   // Table Search State
   const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredOrders = orders.filter(item => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      (item.section_name && item.section_name.toLowerCase().includes(q)) ||
-      (item.buyer_name && item.buyer_name.toLowerCase().includes(q)) ||
-      (item.style_no && item.style_no.toLowerCase().includes(q)) ||
-      (item.process_name && item.process_name.toLowerCase().includes(q)) ||
-      (item.color_name && item.color_name.toLowerCase().includes(q)) ||
-      (item.order_quantity && item.order_quantity.toString().includes(q))
-    );
-  });
+  const [activeSearch, setActiveSearch] = useState('');
 
   // Modals state
   const [showIncreaseModal, setShowIncreaseModal] = useState(false);
@@ -159,7 +147,7 @@ export default function BuyerOrderInfo({ token }) {
   }, []);
 
   const fetchSections = () => {
-    fetch('http://localhost:5000/api/sections', {
+    fetch('/api/sections', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -168,7 +156,7 @@ export default function BuyerOrderInfo({ token }) {
   };
 
   const fetchBuyers = () => {
-    fetch('http://localhost:5000/api/buyers', {
+    fetch('/api/buyers', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -177,7 +165,7 @@ export default function BuyerOrderInfo({ token }) {
   };
 
   const fetchStyles = () => {
-    fetch('http://localhost:5000/api/styles', {
+    fetch('/api/styles', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -186,7 +174,7 @@ export default function BuyerOrderInfo({ token }) {
   };
 
   const fetchProcesses = () => {
-    fetch('http://localhost:5000/api/processes', {
+    fetch('/api/processes', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -195,7 +183,7 @@ export default function BuyerOrderInfo({ token }) {
   };
 
   const fetchColors = () => {
-    fetch('http://localhost:5000/api/colors', {
+    fetch('/api/colors', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -203,9 +191,16 @@ export default function BuyerOrderInfo({ token }) {
       .catch(err => console.error('Error fetching colors:', err));
   };
 
-  const fetchOrders = () => {
+  const fetchOrders = (search = '') => {
     setLoading(true);
-    fetch('http://localhost:5000/api/buyer-orders', {
+    let url = '/api/buyer-orders';
+    if (search && search.trim() !== '') {
+      url += `?search=${encodeURIComponent(search.trim())}`;
+    } else {
+      url += '?limit=50';
+    }
+
+    fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -217,6 +212,24 @@ export default function BuyerOrderInfo({ token }) {
         console.error('Error fetching orders:', err);
         setLoading(false);
       });
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    setActiveSearch(q);
+    fetchOrders(q);
+    if (q) {
+      toast.success(`"${q}" এর ফলাফল সরাসরি ডাটাবেজ থেকে ফেচ করা হয়েছে!`);
+    } else {
+      toast.success('ডাটাবেজ থেকে সর্বশেষ ৫০ টি রেকর্ড লোড করা হয়েছে!');
+    }
+  };
+
+  const handleResetSearch = () => {
+    setSearchQuery('');
+    setActiveSearch('');
+    fetchOrders('');
   };
 
   const handleSubmit = (e) => {
@@ -263,7 +276,7 @@ export default function BuyerOrderInfo({ token }) {
     };
 
     if (editingId !== null) {
-      fetch(`http://localhost:5000/api/buyer-orders/${editingId}`, {
+      fetch(`/api/buyer-orders/${editingId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -288,7 +301,7 @@ export default function BuyerOrderInfo({ token }) {
           toast.error(err.message);
         });
     } else {
-      fetch('http://localhost:5000/api/buyer-orders', {
+      fetch('/api/buyer-orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -334,7 +347,7 @@ export default function BuyerOrderInfo({ token }) {
   const handleDelete = (id) => {
     if (!window.confirm('আপনি কি নিশ্চিত যে এই বায়ার অর্ডার রেকর্ডটি মুছে ফেলতে চান?')) return;
 
-    fetch(`http://localhost:5000/api/buyer-orders/${id}`, {
+    fetch(`/api/buyer-orders/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -398,7 +411,7 @@ export default function BuyerOrderInfo({ token }) {
       return;
     }
 
-    fetch('http://localhost:5000/api/approvals/order-increase', {
+    fetch('/api/approvals/order-increase', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -442,7 +455,7 @@ export default function BuyerOrderInfo({ token }) {
       return;
     }
 
-    fetch('http://localhost:5000/api/approvals/rewinding', {
+    fetch('/api/approvals/rewinding', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -643,35 +656,44 @@ export default function BuyerOrderInfo({ token }) {
             <div className="flex items-center gap-3">
               <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">বায়ার অর্ডার তালিকা</h3>
               <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
-                {searchQuery ? `ফলাফল: ${filteredOrders.length} টি` : `মোট রেকর্ড: ${orders.length} টি`}
+                {activeSearch ? `ডাটাবেজ ফলাফল: ${orders.length} টি` : `সর্বশেষ ৫০ টি রেকর্ড`}
               </span>
             </div>
 
-            {/* Real-time Buyer Order Search Option */}
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
-                placeholder="সেকশন, বায়ার, স্টাইল, প্রসেস, কালার..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
-                  title="সার্চ রিসেট করুন"
-                >
-                  <XCircle size={14} />
-                </button>
-              )}
-            </div>
+            {/* Direct Database Search Option with Search Button */}
+            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-60">
+                <input
+                  type="text"
+                  className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                  placeholder="সেকশন, বায়ার, স্টাইল, প্রসেস, কালার..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleResetSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
+                    title="সার্চ রিসেট করুন"
+                  >
+                    <XCircle size={14} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="bg-sky-500 hover:bg-sky-400 text-white font-medium px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-md shadow-sky-500/20"
+              >
+                <Search size={14} />
+                <span>সার্চ</span>
+              </button>
+            </form>
           </div>
 
           {loading ? (
-            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">ডাটাবেজ থেকে লোড হচ্ছে...</div>
           ) : (
             <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
@@ -690,14 +712,14 @@ export default function BuyerOrderInfo({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {filteredOrders.length === 0 ? (
+                  {orders.length === 0 ? (
                     <tr>
                       <td colSpan="10" className="text-center py-10 text-slate-400 space-y-2">
                         <div>কোন বায়ার অর্ডার খুঁজে পাওয়া যায়নি</div>
-                        {searchQuery && (
+                        {activeSearch && (
                           <button
                             type="button"
-                            onClick={() => setSearchQuery('')}
+                            onClick={handleResetSearch}
                             className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
                           >
                             সার্চ রিসেট করুন
@@ -706,7 +728,7 @@ export default function BuyerOrderInfo({ token }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredOrders.map((item, index) => (
+                    orders.map((item, index) => (
                       <tr key={item.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{item.section_name || '—'}</td>

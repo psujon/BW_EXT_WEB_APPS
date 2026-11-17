@@ -2,7 +2,26 @@ const { prisma } = require('../db');
 
 exports.getAll = async (req, res) => {
   try {
+    const { search, limit } = req.query;
+    const where = {};
+
+    if (search && search.trim() !== '') {
+      const q = search.trim();
+      where.OR = [
+        { challan_no: { contains: q } },
+        { gate_pass_no: { contains: q } },
+        { section: { name: { contains: q } } },
+        { style: { style_no: { contains: q } } },
+        { process: { process_name: { contains: q } } },
+        { color: { color_name: { contains: q } } }
+      ];
+    }
+
+    const takeLimit = limit ? parseInt(limit) : (search ? undefined : 50);
+
     const list = await prisma.yarnChallan.findMany({
+      where,
+      take: takeLimit,
       include: {
         section: { select: { name: true } },
         style: { select: { style_no: true } },

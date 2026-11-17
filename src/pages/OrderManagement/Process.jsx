@@ -83,9 +83,8 @@ function SearchableSelect({
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
-                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
-                  }`}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                    }`}
                 >
                   <span className="truncate">{opt.label}</span>
                   {opt.sublabel && (
@@ -122,22 +121,8 @@ export default function Process({ token }) {
 
   const [editingId, setEditingId] = useState(null);
   const [formError, setFormError] = useState('');
-
-  // Table Search State
   const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredProcesses = processes.filter(proc => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      (proc.section_name && proc.section_name.toLowerCase().includes(q)) ||
-      (proc.buyer_name && proc.buyer_name.toLowerCase().includes(q)) ||
-      (proc.style_no && proc.style_no.toLowerCase().includes(q)) ||
-      (proc.process_name && proc.process_name.toLowerCase().includes(q)) ||
-      (proc.type && proc.type.toLowerCase().includes(q)) ||
-      (proc.status && proc.status.toLowerCase().includes(q))
-    );
-  });
+  const [activeSearch, setActiveSearch] = useState('');
 
   useEffect(() => {
     fetchProcesses();
@@ -147,7 +132,7 @@ export default function Process({ token }) {
   }, []);
 
   const fetchSections = () => {
-    fetch('http://localhost:5000/api/sections', {
+    fetch('/api/sections', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -156,7 +141,7 @@ export default function Process({ token }) {
   };
 
   const fetchBuyers = () => {
-    fetch('http://localhost:5000/api/buyers', {
+    fetch('/api/buyers', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -165,7 +150,7 @@ export default function Process({ token }) {
   };
 
   const fetchStyles = () => {
-    fetch('http://localhost:5000/api/styles', {
+    fetch('/api/styles', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -173,9 +158,16 @@ export default function Process({ token }) {
       .catch(err => console.error('Error fetching styles:', err));
   };
 
-  const fetchProcesses = () => {
+  const fetchProcesses = (search = '') => {
     setLoading(true);
-    fetch('http://localhost:5000/api/processes', {
+    let url = '/api/processes';
+    if (search && search.trim() !== '') {
+      url += `?search=${encodeURIComponent(search.trim())}`;
+    } else {
+      url += '?limit=50';
+    }
+
+    fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -187,6 +179,24 @@ export default function Process({ token }) {
         console.error('Error fetching processes:', err);
         setLoading(false);
       });
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    setActiveSearch(q);
+    fetchProcesses(q);
+    if (q) {
+      toast.success(`"${q}" এর ফলাফল সরাসরি ডাটাবেজ থেকে ফেচ করা হয়েছে!`);
+    } else {
+      toast.success('ডাটাবেজ থেকে সর্বশেষ ৫০ টি রেকর্ড লোড করা হয়েছে!');
+    }
+  };
+
+  const handleResetSearch = () => {
+    setSearchQuery('');
+    setActiveSearch('');
+    fetchProcesses('');
   };
 
   const handleSubmit = async (e) => {
@@ -205,23 +215,6 @@ export default function Process({ token }) {
     const stId = parseInt(styleId);
     const pName = processName.trim();
 
-    // Front-end duplicate check
-    const isDup = processes.some(proc =>
-      proc.section_id === sId &&
-      proc.buyer_id === bId &&
-      proc.style_id === stId &&
-      proc.process_name &&
-      proc.process_name.trim().toLowerCase() === pName.toLowerCase() &&
-      (editingId === null || proc.id !== editingId)
-    );
-
-    if (isDup) {
-      const dupMsg = 'ডুপ্লিকেট এন্ট্রি সম্ভব নয়! এই সেকশন, বায়ার, স্টাইল এবং প্রসেস নাম দিয়ে ইতোমধ্যে একটি রেকর্ড আছে।';
-      setFormError(dupMsg);
-      toast.error(dupMsg);
-      return;
-    }
-
     const payload = {
       section_id: sId,
       buyer_id: bId,
@@ -233,7 +226,7 @@ export default function Process({ token }) {
 
     try {
       if (editingId !== null) {
-        const res = await fetch(`http://localhost:5000/api/processes/${editingId}`, {
+        const res = await fetch(`/api/processes/${editingId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -247,7 +240,7 @@ export default function Process({ token }) {
         toast.success('প্রসেস সফলভাবে আপডেট করা হয়েছে!');
         setEditingId(null);
       } else {
-        const res = await fetch('http://localhost:5000/api/processes', {
+        const res = await fetch('/api/processes', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -261,7 +254,6 @@ export default function Process({ token }) {
         toast.success('নতুন প্রসেস সফলভাবে যুক্ত করা হয়েছে!');
       }
 
-      // Clear Form on Success
       setSectionId('');
       setBuyerId('');
       setStyleId('');
@@ -269,7 +261,7 @@ export default function Process({ token }) {
       setType('complete');
       setStatus('Active');
       setFormError('');
-      fetchProcesses();
+      fetchProcesses(activeSearch);
     } catch (err) {
       setFormError(err.message);
       toast.error(err.message);
@@ -300,18 +292,23 @@ export default function Process({ token }) {
 
   const handleDelete = (id) => {
     if (window.confirm('আপনি কি এই প্রসেসটি ডিলিট করতে চান?')) {
-      fetch(`http://localhost:5000/api/processes/${id}`, {
+      fetch(`/api/processes/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
-        .then(res => {
-          if (!res.ok) throw new Error('Failed to delete process');
-          fetchProcesses();
+        .then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to delete process');
+          return data;
+        })
+        .then(() => {
+          toast.success('প্রসেস রেকর্ড সফলভাবে ডিলিট করা হয়েছে!');
+          fetchProcesses(activeSearch);
           if (editingId === id) {
             handleCancelEdit();
           }
         })
-        .catch(err => alert(err.message));
+        .catch(err => toast.error(err.message));
     }
   };
 
@@ -322,7 +319,7 @@ export default function Process({ token }) {
       </span>
     ) : (
       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-        Uncomplete
+        Incomplete
       </span>
     );
   };
@@ -334,33 +331,28 @@ export default function Process({ token }) {
       </span>
     ) : (
       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-        Closed
+        Inactive
       </span>
     );
   };
 
-  // Options formatting for SearchableSelect
-  const buyerOptions = buyers?.map((b) => ({
-    id: b.id,
-    label: b.name
-  })) || [];
-
-  const styleOptions = (
-    buyerId
-      ? styles?.filter((st) => String(st.buyer_id) === String(buyerId))
-      : styles
-  )?.map((st) => ({
+  const styleOptions = styles?.map((st) => ({
     id: st.id,
     label: st.style_no,
     sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+  })) || [];
+
+  const buyerOptions = buyers?.map((b) => ({
+    id: b.id,
+    label: b.name
   })) || [];
 
   return (
     <div className="space-y-6">
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Process Form */}
-        <div className="lg:col-span-1 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
+        {/* Form Panel */}
+        <div className="relative z-20 lg:col-span-1 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
           <h3 className="text-lg font-semibold text-slate-100 mb-5 flex items-center gap-2">
             <GitBranch size={18} className="text-sky-400" />
             {editingId !== null ? 'প্রসেস সংশোধন করুন' : 'নতুন প্রসেস যুক্ত করুন'}
@@ -372,7 +364,6 @@ export default function Process({ token }) {
               <span className="leading-relaxed">{formError}</span>
             </div>
           )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">সেকশন (Section) *</label>
@@ -384,7 +375,7 @@ export default function Process({ token }) {
               >
                 <option value="">Select Section</option>
                 {sections?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -394,36 +385,18 @@ export default function Process({ token }) {
               <SearchableSelect
                 options={buyerOptions}
                 value={buyerId}
-                onChange={(selectedId) => {
-                  setBuyerId(selectedId);
-                  // Reset style if the current selected style doesn't belong to selected buyer
-                  if (selectedId && styleId) {
-                    const currentStyle = styles.find(st => String(st.id) === String(styleId));
-                    if (currentStyle && String(currentStyle.buyer_id) !== String(selectedId)) {
-                      setStyleId('');
-                    }
-                  }
-                }}
+                onChange={(selectedId) => setBuyerId(selectedId)}
                 placeholder="Select Buyer..."
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল *</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল নম্বর *</label>
               <SearchableSelect
                 options={styleOptions}
                 value={styleId}
-                onChange={(selectedId) => {
-                  setStyleId(selectedId);
-                  // Auto pick buyer if not picked yet
-                  if (selectedId && !buyerId) {
-                    const currentStyle = styles.find(st => String(st.id) === String(selectedId));
-                    if (currentStyle && currentStyle.buyer_id) {
-                      setBuyerId(currentStyle.buyer_id);
-                    }
-                  }
-                }}
+                onChange={(selectedId) => setStyleId(selectedId)}
                 placeholder="Select Style..."
                 required
               />
@@ -436,7 +409,7 @@ export default function Process({ token }) {
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
                 value={processName}
                 onChange={(e) => setProcessName(e.target.value)}
-                placeholder="Knitting / Packing"
+                placeholder="Knitting / Link / Washing"
                 required
               />
             </div>
@@ -450,19 +423,19 @@ export default function Process({ token }) {
                 required
               >
                 <option value="complete">Complete</option>
-                <option value="uncomplete">Uncomplete</option>
+                <option value="incomplete">Incomplete</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">অবস্থা (Status)</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">স্ট্যাটাস</label>
               <select
                 className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
                 <option value="Active">Active</option>
-                <option value="Closed">Closed</option>
+                <option value="Inactive">Inactive</option>
               </select>
             </div>
 
@@ -490,35 +463,44 @@ export default function Process({ token }) {
             <div className="flex items-center gap-3">
               <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">প্রসেস তালিকা</h3>
               <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
-                {searchQuery ? `ফলাফল: ${filteredProcesses.length} টি` : `মোট প্রসেস: ${processes.length} টি`}
+                {activeSearch ? `ডাটাবেজ ফলাফল: ${processes.length} টি` : `সর্বশেষ ৫০ টি রেকর্ড`}
               </span>
             </div>
 
-            {/* Real-time Process Search Option */}
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
-                placeholder="প্রসেস, সেকশন, বায়ার, স্টাইল বা টাইপ..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
-                  title="সার্চ রিসেট করুন"
-                >
-                  <XCircle size={14} />
-                </button>
-              )}
-            </div>
+            {/* Direct Database Search Option with Search Button */}
+            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-60">
+                <input
+                  type="text"
+                  className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                  placeholder="প্রসেস, সেকশন, বায়ার, স্টাইল বা টাইপ..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleResetSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
+                    title="সার্চ রিসেট করুন"
+                  >
+                    <XCircle size={14} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="bg-sky-500 hover:bg-sky-400 text-white font-medium px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-md shadow-sky-500/20"
+              >
+                <Search size={14} />
+                <span>সার্চ</span>
+              </button>
+            </form>
           </div>
 
           {loading ? (
-            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">ডাটাবেজ থেকে লোড হচ্ছে...</div>
           ) : (
             <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
@@ -535,14 +517,14 @@ export default function Process({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {filteredProcesses.length === 0 ? (
+                  {processes.length === 0 ? (
                     <tr>
                       <td colSpan="8" className="text-center py-10 text-slate-400 space-y-2">
                         <div>কোন প্রসেস রেকর্ড খুঁজে পাওয়া যায়নি</div>
-                        {searchQuery && (
+                        {activeSearch && (
                           <button
                             type="button"
-                            onClick={() => setSearchQuery('')}
+                            onClick={handleResetSearch}
                             className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
                           >
                             সার্চ রিসেট করুন
@@ -551,7 +533,7 @@ export default function Process({ token }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredProcesses.map((proc, index) => (
+                    processes.map((proc, index) => (
                       <tr key={proc.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{proc.section_name || '—'}</td>

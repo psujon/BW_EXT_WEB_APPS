@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, KeyRound, Eye, EyeOff, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function User({ token }) {
@@ -13,9 +13,15 @@ export default function User({ token }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('operator');
 
+  // Admin Change Password Modal State
+  const [selectedUserForPass, setSelectedUserForPass] = useState(null);
+  const [adminNewPassword, setAdminNewPassword] = useState('');
+  const [showAdminPass, setShowAdminPass] = useState(false);
+  const [passUpdating, setPassUpdating] = useState(false);
+
   useEffect(() => {
     setLoading(true);
-    fetch('http://localhost:5000/api/users', {
+    fetch('/api/users', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -36,7 +42,7 @@ export default function User({ token }) {
       return;
     }
 
-    fetch('http://localhost:5000/api/users', {
+    fetch('/api/users', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -63,7 +69,7 @@ export default function User({ token }) {
   };
 
   const handleRoleChange = (userId, newRole) => {
-    fetch(`http://localhost:5000/api/users/${userId}/role`, {
+    fetch(`/api/users/${userId}/role`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -81,6 +87,39 @@ export default function User({ token }) {
         setRefresh(!refresh);
       })
       .catch(err => toast.error(err.message));
+  };
+
+  const handleAdminSavePassword = (e) => {
+    e.preventDefault();
+    if (!selectedUserForPass || !adminNewPassword.trim()) {
+      toast.error('অনুগ্রহ করে নতুন পাসওয়ার্ড প্রদান করুন!');
+      return;
+    }
+
+    setPassUpdating(true);
+    fetch(`/api/users/${selectedUserForPass.id}/password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ newPassword: adminNewPassword.trim() })
+    })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update password');
+        return data;
+      })
+      .then(data => {
+        toast.success(data.message || `@${selectedUserForPass.username} এর পাসওয়ার্ড সফলভাবে আপডেট করা হয়েছে!`);
+        setSelectedUserForPass(null);
+        setAdminNewPassword('');
+        setPassUpdating(false);
+      })
+      .catch(err => {
+        setPassUpdating(false);
+        toast.error(err.message);
+      });
   };
 
   return (
@@ -167,7 +206,7 @@ export default function User({ token }) {
         {/* User Table List & Role Changer */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-100">ইউজার তালিকা ও রোল পরিবর্তন</h3>
+            <h3 className="text-lg font-semibold text-slate-100">ইউজার তালিকা ও রোল/পাসওয়ার্ড নিয়ন্ত্রণ</h3>
             <span className="text-xs text-slate-400">মোট রেজিস্টার্ড: {users.length} জন</span>
           </div>
 
@@ -180,8 +219,8 @@ export default function User({ token }) {
                   <tr className="bg-[#131b2e] border-b border-white/6">
                     <th className="py-3.5 px-4 text-slate-300 font-semibold">পূর্ণ নাম</th>
                     <th className="py-3.5 px-4 text-slate-300 font-semibold">ইউজারনেম</th>
-                    <th className="py-3.5 px-4 text-slate-300 font-semibold">ইমেইল</th>
-                    <th className="py-3.5 px-4 text-slate-300 font-semibold">রোল (Role) পরিবর্তন</th>
+                    <th className="py-3.5 px-4 text-slate-300 font-semibold">রোল (Role)</th>
+                    <th className="py-3.5 px-4 text-slate-300 font-semibold text-center">অ্যাকশন / পাসওয়ার্ড</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
@@ -189,7 +228,6 @@ export default function User({ token }) {
                     <tr key={u.id} className="hover:bg-white/2 transition-colors">
                       <td className="py-3.5 px-4 text-slate-200"><strong>{u.name}</strong></td>
                       <td className="py-3.5 px-4"><span className="text-sky-400">@{u.username}</span></td>
-                      <td className="py-3.5 px-4 text-slate-300">{u.email || '—'}</td>
                       <td className="py-3.5 px-4">
                         <select
                           className={`bg-[#0b0f19] border border-white/10 rounded px-2.5 py-1 text-xs font-bold focus:outline-none transition-colors cursor-pointer uppercase ${u.role === 'admin'
@@ -201,10 +239,24 @@ export default function User({ token }) {
                           value={u.role}
                           onChange={(e) => handleRoleChange(u.id, e.target.value)}
                         >
-                          <option value="operator" className="bg-[#131b2e] text-emerald-400">OPERATOR (অপারেটর)</option>
-                          <option value="user" className="bg-[#131b2e] text-sky-400">USER (ইউজার)</option>
-                          <option value="admin" className="bg-[#131b2e] text-red-400">ADMIN (এডমিন)</option>
+                          <option value="operator" className="bg-[#131b2e] text-emerald-400">OPERATOR</option>
+                          <option value="user" className="bg-[#131b2e] text-sky-400">USER</option>
+                          <option value="admin" className="bg-[#131b2e] text-red-400">ADMIN</option>
                         </select>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          onClick={() => {
+                            setSelectedUserForPass(u);
+                            setAdminNewPassword('');
+                            setShowAdminPass(false);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 text-xs font-semibold transition-colors cursor-pointer"
+                          title="পাসওয়ার্ড পরিবর্তন করুন"
+                        >
+                          <KeyRound size={13} />
+                          <span>পাসওয়ার্ড চেঞ্জ</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -214,6 +266,72 @@ export default function User({ token }) {
           )}
         </div>
       </div>
+
+      {/* --- Admin Password Change Modal --- */}
+      {selectedUserForPass && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#18223c] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/6 pb-3">
+              <h4 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <KeyRound size={18} className="text-sky-400" />
+                পাসওয়ার্ড রিসেট (@{selectedUserForPass.username})
+              </h4>
+              <button
+                onClick={() => setSelectedUserForPass(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bg-[#0b0f19]/60 p-3 rounded-xl border border-white/5 space-y-1 text-xs text-slate-300">
+              <div><strong>ইউজার নাম:</strong> {selectedUserForPass.name}</div>
+              <div><strong>ইউজারনেম:</strong> @{selectedUserForPass.username}</div>
+            </div>
+
+            <form onSubmit={handleAdminSavePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">নতুন পাসওয়ার্ড (New Password) *</label>
+                <div className="relative">
+                  <input
+                    type={showAdminPass ? 'text' : 'password'}
+                    className="w-full bg-[#0b0f19] border border-white/10 rounded-xl py-2.5 pl-3.5 pr-10 text-slate-100 text-sm font-medium focus:outline-none focus:border-sky-500 transition-colors"
+                    value={adminNewPassword}
+                    onChange={(e) => setAdminNewPassword(e.target.value)}
+                    placeholder="নতুন পাসওয়ার্ড টাইপ করুন"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPass(!showAdminPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    {showAdminPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={passUpdating}
+                  className="flex-1 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-semibold py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors cursor-pointer text-sm disabled:opacity-50"
+                >
+                  {passUpdating ? 'আপডেট হচ্ছে...' : 'পাসওয়ার্ড সেট করুন'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedUserForPass(null)}
+                  className="bg-white/5 hover:bg-white/10 text-slate-300 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer text-sm"
+                >
+                  বাতিল
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

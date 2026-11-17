@@ -128,7 +128,7 @@ export default function ProductionEntry({ token }) {
 
   // Dynamic Card Items List
   const [cards, setCards] = useState([
-    { id: Date.now(), card_no: '', emp_name: '', quantity: '' }
+    { id: Date.now(), card_no: '', employee_id: null, emp_name: '', quantity: '' }
   ]);
 
   const [saving, setSaving] = useState(false);
@@ -142,7 +142,7 @@ export default function ProductionEntry({ token }) {
   }, []);
 
   const fetchSections = () => {
-    fetch('http://localhost:5000/api/sections', {
+    fetch('/api/sections', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -151,7 +151,7 @@ export default function ProductionEntry({ token }) {
   };
 
   const fetchStyles = () => {
-    fetch('http://localhost:5000/api/styles', {
+    fetch('/api/styles', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -160,7 +160,7 @@ export default function ProductionEntry({ token }) {
   };
 
   const fetchProcesses = () => {
-    fetch('http://localhost:5000/api/processes', {
+    fetch('/api/processes', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -169,7 +169,7 @@ export default function ProductionEntry({ token }) {
   };
 
   const fetchColors = () => {
-    fetch('http://localhost:5000/api/colors', {
+    fetch('/api/colors', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -178,7 +178,7 @@ export default function ProductionEntry({ token }) {
   };
 
   const fetchEmployees = () => {
-    fetch('http://localhost:5000/api/employees', {
+    fetch('/api/employees', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -207,6 +207,7 @@ export default function ProductionEntry({ token }) {
           return {
             ...c,
             card_no: matched ? matched.card_no : c.card_no,
+            employee_id: matched ? matched.id : null,
             emp_name: matched ? matched.name : ''
           };
         }
@@ -219,7 +220,7 @@ export default function ProductionEntry({ token }) {
   const handleAddCardRow = () => {
     setCards(prev => [
       ...prev,
-      { id: Date.now(), card_no: '', emp_name: '', quantity: '' }
+      { id: Date.now(), card_no: '', employee_id: null, emp_name: '', quantity: '' }
     ]);
   };
 
@@ -245,6 +246,7 @@ export default function ProductionEntry({ token }) {
         return {
           ...c,
           card_no: cardNoVal,
+          employee_id: matchedEmp ? matchedEmp.id : null,
           emp_name: matchedEmp ? matchedEmp.name : ''
         };
       }
@@ -279,6 +281,7 @@ export default function ProductionEntry({ token }) {
           return {
             ...c,
             card_no: matchedEmp.card_no,
+            employee_id: matchedEmp.id,
             emp_name: matchedEmp.name
           };
         }
@@ -286,7 +289,7 @@ export default function ProductionEntry({ token }) {
       }));
       toast.success(`"${secName}" সেকশনে ইমপ্লয়ী নিশ্চিত করা হয়েছে: ${matchedEmp.card_no} (${matchedEmp.name})`);
     } else {
-      setCards(prev => prev.map(c => c.id === id ? { ...c, emp_name: '' } : c));
+      setCards(prev => prev.map(c => c.id === id ? { ...c, employee_id: null, emp_name: '' } : c));
       toast.error(`"${secName}" সেকশনে "${cardNoVal}" কার্ড নম্বরের কোনো একটিভ ইমপ্লয়ী পাওয়া যায়নি!`);
     }
   };
@@ -320,19 +323,30 @@ export default function ProductionEntry({ token }) {
 
     setSaving(true);
 
+    const availableEmployees = getSectionEmployees();
     const payload = {
       section_id: parseInt(sectionId),
       style_id: parseInt(styleId),
       process_id: parseInt(processId),
       color_id: parseInt(colorId),
       production_date: productionDate,
-      items: validCards.map(c => ({
-        card_no: c.card_no,
-        quantity: parseInt(c.quantity)
-      }))
+      items: validCards.map(c => {
+        let empId = c.employee_id;
+        if (!empId) {
+          const trimmedVal = c.card_no.trim().toLowerCase();
+          const found = availableEmployees.find(e => e.card_no.trim().toLowerCase() === trimmedVal) ||
+            availableEmployees.find(e => e.card_no.trim().toLowerCase().includes(trimmedVal));
+          if (found) empId = found.id;
+        }
+        return {
+          employee_id: empId,
+          card_no: empId ? String(empId) : c.card_no,
+          quantity: parseInt(c.quantity)
+        };
+      })
     };
 
-    fetch('http://localhost:5000/api/production', {
+    fetch('/api/production', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -347,7 +361,7 @@ export default function ProductionEntry({ token }) {
       })
       .then((data) => {
         toast.success(data.message || 'সবগুলো কার্ডের প্রোডাকশন এন্ট্রি সফলভাবে ডাটাবেজে সংরক্ষণ করা হয়েছে!');
-        setCards([{ id: Date.now(), card_no: '', emp_name: '', quantity: '' }]);
+        setCards([{ id: Date.now(), card_no: '', employee_id: null, emp_name: '', quantity: '' }]);
         setSaving(false);
       })
       .catch(err => {
@@ -507,16 +521,22 @@ export default function ProductionEntry({ token }) {
                 <span className="text-xs font-bold text-slate-400 w-8 shrink-0">#{index + 1}</span>
 
                 {/* Card No Input with Section-wise Search */}
-                <div className="w-full md:flex-1">
+                <div className="w-full md:flex-1 relative">
                   <input
                     type="text"
-                    className="w-full bg-[#0b0f19]/60 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors font-medium"
+                    list={`employee-cards-${sectionId}`}
+                    className="w-full bg-[#0b0f19]/60 border border-white/6 rounded-lg py-2 px-3 pr-16 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors font-medium"
                     value={item.card_no}
                     onChange={(e) => handleCardNoChange(item.id, e.target.value)}
                     onBlur={(e) => handleCardNoBlur(item.id, e.target.value)}
-                    placeholder={sectionId ? "কার্ড নম্বর (উদা. 1001)" : "প্রথমে সেকশন সিলেক্ট করুন"}
+                    placeholder={sectionId ? "কার্ড নম্বর লিখুন বা সিলেক্ট করুন" : "প্রথমে সেকশন সিলেক্ট করুন"}
                     required
                   />
+                  {item.employee_id && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono pointer-events-none font-bold">
+                      ID: {item.employee_id}
+                    </span>
+                  )}
                 </div>
 
                 {/* Employee Name (Auto Populated) */}
@@ -580,6 +600,14 @@ export default function ProductionEntry({ token }) {
               </div>
             ))}
           </div>
+
+          <datalist id={`employee-cards-${sectionId}`}>
+            {getSectionEmployees().map(emp => (
+              <option key={emp.id} value={emp.card_no}>
+                {emp.card_no} - {emp.name} ({emp.designation}) [ID: {emp.id}]
+              </option>
+            ))}
+          </datalist>
 
           {/* Footer Actions & Total Calculation */}
           <div className="pt-4 border-t border-white/6 flex items-center justify-between">

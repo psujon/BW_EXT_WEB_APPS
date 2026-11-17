@@ -23,7 +23,7 @@ export default function CompanyProfile({ token }) {
 
   const fetchProfile = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/company', {
+    fetch('/api/company', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -90,7 +90,7 @@ export default function CompanyProfile({ token }) {
       logo_url: logoUrl
     };
 
-    fetch('http://localhost:5000/api/company', {
+    fetch('/api/company', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,6 +1,108 @@
-import React, { useState, useEffect } from 'react';
-import { Palette, Edit, Trash2, XCircle, Search, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Palette, Edit, Trash2, XCircle, Search, AlertCircle, ChevronDown, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+function SearchableSelect({
+  options = [],
+  value,
+  onChange,
+  placeholder = 'Select...',
+  required = false
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find((opt) => String(opt.id) === String(value));
+
+  const filteredOptions = options.filter((opt) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    const labelMatch = opt.label && String(opt.label).toLowerCase().includes(term);
+    const subMatch = opt.sublabel && String(opt.sublabel).toLowerCase().includes(term);
+    return labelMatch || subMatch;
+  });
+
+  return (
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={wrapperRef}>
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 pr-8 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors cursor-pointer"
+          placeholder={placeholder}
+          value={isOpen ? searchTerm : (selectedOption ? selectedOption.label : '')}
+          onFocus={() => {
+            setIsOpen(true);
+            setSearchTerm('');
+          }}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          required={required && !value}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+              setSearchTerm('');
+              setIsOpen(false);
+            }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 rounded-full cursor-pointer"
+            title="রিসেট করুন"
+          >
+            <X size={14} />
+          </button>
+        ) : (
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-[9999] left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-[#0f172a] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl py-1 divide-y divide-white/5">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => {
+              const isSelected = String(opt.id) === String(value);
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => {
+                    onChange(opt.id);
+                    setIsOpen(false);
+                    setSearchTerm('');
+                  }}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                    }`}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {opt.sublabel && (
+                    <span className="text-[10px] text-slate-400 ml-2 shrink-0">{opt.sublabel}</span>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="px-3 py-3 text-xs text-slate-500 text-center">
+              কোনো ফলাফল পাওয়া যায়নি
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Color({ token }) {
   const [colors, setColors] = useState([]);
@@ -20,17 +122,7 @@ export default function Color({ token }) {
 
   // Table Search State
   const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredColors = colors.filter(item => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      (item.section_name && item.section_name.toLowerCase().includes(q)) ||
-      (item.style_no && item.style_no.toLowerCase().includes(q)) ||
-      (item.process_name && item.process_name.toLowerCase().includes(q)) ||
-      (item.color_name && item.color_name.toLowerCase().includes(q))
-    );
-  });
+  const [activeSearch, setActiveSearch] = useState('');
 
   useEffect(() => {
     fetchColors();
@@ -40,7 +132,7 @@ export default function Color({ token }) {
   }, []);
 
   const fetchSections = () => {
-    fetch('http://localhost:5000/api/sections', {
+    fetch('/api/sections', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -49,7 +141,7 @@ export default function Color({ token }) {
   };
 
   const fetchStyles = () => {
-    fetch('http://localhost:5000/api/styles', {
+    fetch('/api/styles', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -58,7 +150,7 @@ export default function Color({ token }) {
   };
 
   const fetchProcesses = () => {
-    fetch('http://localhost:5000/api/processes', {
+    fetch('/api/processes', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -66,9 +158,16 @@ export default function Color({ token }) {
       .catch(err => console.error('Error fetching processes:', err));
   };
 
-  const fetchColors = () => {
+  const fetchColors = (search = '') => {
     setLoading(true);
-    fetch('http://localhost:5000/api/colors', {
+    let url = '/api/colors';
+    if (search && search.trim() !== '') {
+      url += `?search=${encodeURIComponent(search.trim())}`;
+    } else {
+      url += '?limit=50';
+    }
+
+    fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -80,6 +179,24 @@ export default function Color({ token }) {
         console.error('Error fetching colors:', err);
         setLoading(false);
       });
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    setActiveSearch(q);
+    fetchColors(q);
+    if (q) {
+      toast.success(`"${q}" এর ফলাফল সরাসরি ডাটাবেজ থেকে ফেচ করা হয়েছে!`);
+    } else {
+      toast.success('ডাটাবেজ থেকে সর্বশেষ ৫০ টি রেকর্ড লোড করা হয়েছে!');
+    }
+  };
+
+  const handleResetSearch = () => {
+    setSearchQuery('');
+    setActiveSearch('');
+    fetchColors('');
   };
 
   const handleSubmit = async (e) => {
@@ -124,7 +241,7 @@ export default function Color({ token }) {
 
     try {
       if (editingId !== null) {
-        const res = await fetch(`http://localhost:5000/api/colors/${editingId}`, {
+        const res = await fetch(`/api/colors/${editingId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -138,7 +255,7 @@ export default function Color({ token }) {
         toast.success('কালার তথ্য সফলভাবে আপডেট করা হয়েছে!');
         setEditingId(null);
       } else {
-        const res = await fetch('http://localhost:5000/api/colors', {
+        const res = await fetch('/api/colors', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -157,7 +274,7 @@ export default function Color({ token }) {
       setProcessId('');
       setColorName('');
       setFormError('');
-      fetchColors();
+      fetchColors(activeSearch);
     } catch (err) {
       setFormError(err.message);
       toast.error(err.message);
@@ -184,7 +301,7 @@ export default function Color({ token }) {
 
   const handleDelete = (id) => {
     if (window.confirm('আপনি কি এই কালারটি ডিলিট করতে চান?')) {
-      fetch(`http://localhost:5000/api/colors/${id}`, {
+      fetch(`/api/colors/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -195,7 +312,7 @@ export default function Color({ token }) {
         })
         .then(() => {
           toast.success('কালার রেকর্ড সফলভাবে ডিলিট করা হয়েছে!');
-          fetchColors();
+          fetchColors(activeSearch);
           if (editingId === id) {
             handleCancelEdit();
           }
@@ -203,6 +320,12 @@ export default function Color({ token }) {
         .catch(err => toast.error(err.message));
     }
   };
+
+  const styleOptions = styles?.map((st) => ({
+    id: st.id,
+    label: st.style_no,
+    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+  })) || [];
 
   // Dynamic process list filtered by both chosen section and style for Form Dropdown
   const formFilteredProcesses = (sectionId && styleId)
@@ -214,7 +337,7 @@ export default function Color({ token }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* Form Card */}
-        <div className="lg:col-span-1 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
+        <div className="relative z-20 lg:col-span-1 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl w-full">
           <h3 className="text-lg font-semibold text-slate-100 mb-5 flex items-center gap-2">
             <Palette size={18} className="text-sky-400" />
             {editingId !== null ? 'কালার সংশোধন করুন' : 'নতুন কালার সেট করুন'}
@@ -240,27 +363,23 @@ export default function Color({ token }) {
               >
                 <option value="">Select Section</option>
                 {sections?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5">স্টাইল নম্বর *</label>
-              <select
-                className="w-full bg-[#0b0f19]/50 border border-white/6 rounded-lg py-2 px-3 text-slate-100 text-sm focus:outline-none focus:border-sky-500 transition-colors"
+              <SearchableSelect
+                options={styleOptions}
                 value={styleId}
-                onChange={(e) => {
-                  setStyleId(e.target.value);
+                onChange={(selectedId) => {
+                  setStyleId(selectedId);
                   setProcessId('');
                 }}
+                placeholder="Select Style..."
                 required
-              >
-                <option value="">Select Style</option>
-                {styles?.map((st) => (
-                  <option key={st.id} value={st.id}>{st.style_no}</option>
-                ))}
-              </select>
+              />
             </div>
 
             <div>
@@ -276,10 +395,10 @@ export default function Color({ token }) {
                   {!sectionId
                     ? "First select a section"
                     : !styleId
-                    ? "First select a style"
-                    : formFilteredProcesses.length === 0
-                    ? "No processes found for this section & style"
-                    : "Select Process"}
+                      ? "First select a style"
+                      : formFilteredProcesses.length === 0
+                        ? "No processes found for this section & style"
+                        : "Select Process"}
                 </option>
                 {formFilteredProcesses.map((p) => (
                   <option key={p.id} value={p.id}>{p.process_name}</option>
@@ -323,35 +442,44 @@ export default function Color({ token }) {
             <div className="flex items-center gap-3">
               <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">কালার তালিকা</h3>
               <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
-                {searchQuery ? `ফলাফল: ${filteredColors.length} টি` : `মোট রেকর্ড: ${colors.length} টি`}
+                {activeSearch ? `ডাটাবেজ ফলাফল: ${colors.length} টি` : `সর্বশেষ ৫০ টি রেকর্ড`}
               </span>
             </div>
 
-            {/* Real-time Color Search Option */}
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
-                placeholder="কালার, সেকশন, স্টাইল বা প্রসেস..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
-                  title="সার্চ রিসেট করুন"
-                >
-                  <XCircle size={14} />
-                </button>
-              )}
-            </div>
+            {/* Direct Database Search Option with Search Button */}
+            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-60">
+                <input
+                  type="text"
+                  className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                  placeholder="কালার, সেকশন, স্টাইল বা প্রসেস..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleResetSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
+                    title="সার্চ রিসেট করুন"
+                  >
+                    <XCircle size={14} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="bg-sky-500 hover:bg-sky-400 text-white font-medium px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-md shadow-sky-500/20"
+              >
+                <Search size={14} />
+                <span>সার্চ</span>
+              </button>
+            </form>
           </div>
 
           {loading ? (
-            <div className="text-slate-400 p-4">লোড হচ্ছে...</div>
+            <div className="text-slate-400 p-4">ডাটাবেজ থেকে লোড হচ্ছে...</div>
           ) : (
             <div className="border border-white/6 rounded-2xl overflow-hidden bg-[#18223c]/75 backdrop-blur-md overflow-x-auto shadow-xl">
               <table className="w-full border-collapse text-left text-sm">
@@ -366,14 +494,14 @@ export default function Color({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {filteredColors.length === 0 ? (
+                  {colors.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="text-center py-10 text-slate-400 space-y-2">
                         <div>কোন কালার রেকর্ড খুঁজে পাওয়া যায়নি</div>
-                        {searchQuery && (
+                        {activeSearch && (
                           <button
                             type="button"
-                            onClick={() => setSearchQuery('')}
+                            onClick={handleResetSearch}
                             className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
                           >
                             সার্চ রিসেট করুন
@@ -382,7 +510,7 @@ export default function Color({ token }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredColors.map((item, index) => (
+                    colors.map((item, index) => (
                       <tr key={item.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4 font-semibold text-slate-200">{item.section_name || '—'}</td>

@@ -17,6 +17,7 @@ import ProductionEntry from './pages/ProductionInfo/ProductionEntry';
 import ProductionShow from './pages/ProductionInfo/ProductionShow';
 import UserPage from './pages/Settings/User';
 import UserPermission from './pages/Settings/UserPermission';
+import ChangePassword from './pages/Settings/ChangePassword';
 import DatabaseBackup from './pages/DatabaseBackup';
 import Section from './pages/Settings/Section';
 import Color from './pages/OrderManagement/Color';
@@ -41,7 +42,7 @@ export default function App() {
   // Validate session on app launch
   useEffect(() => {
     if (token) {
-      fetch('http://localhost:5000/api/auth/me', {
+      fetch('/api/auth/me', {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => {
@@ -179,6 +180,7 @@ export default function App() {
         <Route path="production-show" element={<ProductionShow token={token} />} />
         <Route path="user" element={<UserPage token={token} />} />
         <Route path="user-permission" element={<UserPermission token={token} />} />
+        <Route path="change-password" element={<ChangePassword token={token} user={user} />} />
         <Route path="section" element={<Section token={token} />} />
         <Route path="company-profile" element={<CompanyProfile token={token} />} />
         <Route path="database-backup" element={<DatabaseBackup token={token} />} />

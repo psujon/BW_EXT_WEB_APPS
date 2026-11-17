@@ -163,10 +163,10 @@ export default function ProductionShow({ token }) {
   const fetchDropdownOptions = () => {
     const headers = { 'Authorization': `Bearer ${token}` };
     Promise.all([
-      fetch('http://localhost:5000/api/sections', { headers }).then(r => r.json()),
-      fetch('http://localhost:5000/api/styles', { headers }).then(r => r.json()),
-      fetch('http://localhost:5000/api/processes', { headers }).then(r => r.json()),
-      fetch('http://localhost:5000/api/colors', { headers }).then(r => r.json())
+      fetch('/api/sections', { headers }).then(r => r.json()),
+      fetch('/api/styles', { headers }).then(r => r.json()),
+      fetch('/api/processes', { headers }).then(r => r.json()),
+      fetch('/api/colors', { headers }).then(r => r.json())
     ])
       .then(([secData, stData, prData, colData]) => {
         setSections(Array.isArray(secData) ? secData : []);
@@ -199,7 +199,7 @@ export default function ProductionShow({ token }) {
     if (fromD) params.append('from_date', fromD);
     if (toD) params.append('to_date', toD);
 
-    const url = `http://localhost:5000/api/production?${params.toString()}`;
+    const url = `/api/production?${params.toString()}`;
 
     fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
@@ -264,7 +264,7 @@ export default function ProductionShow({ token }) {
 
     setSavingEdit(true);
 
-    fetch(`http://localhost:5000/api/production/${id}`, {
+    fetch(`/api/production/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -292,7 +292,7 @@ export default function ProductionShow({ token }) {
   // Delete Record
   const handleDelete = (id) => {
     if (window.confirm('আপনি কি এই প্রোডাকশন রেকর্ডটি ডিলিট করতে চান?')) {
-      fetch(`http://localhost:5000/api/production/${id}`, {
+      fetch(`/api/production/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -556,7 +556,19 @@ export default function ProductionShow({ token }) {
                 productionList.map((item, index) => (
                   <tr key={item.id || index} className="hover:bg-white/2 transition-colors">
                     <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-200">{item.card_no || '—'}</td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-200">
+                      <div className="flex items-center gap-1.5">
+                        <span>{item.card_no || '—'}</span>
+                        {item.employee_id && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-mono" title={`সংরক্ষিত আইডি: ${item.employee_id}`}>
+                            ID: {item.employee_id}
+                          </span>
+                        )}
+                      </div>
+                      {item.employee_name && (
+                        <div className="text-xs font-normal text-slate-400 mt-0.5">{item.employee_name}</div>
+                      )}
+                    </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-200">{item.section_name || '—'}</td>
                     <td className="py-3.5 px-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">

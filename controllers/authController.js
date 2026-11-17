@@ -112,3 +112,35 @@ exports.getStats = async (req, res) => {
     res.status(500).json({ message: 'Internal Server Error' });
   }
 };
+
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'বর্তমান পাসওয়ার্ড এবং নতুন পাসওয়ার্ড উভয় ঘর পূরণ করুন!' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'ইউজার খুঁজে পাওয়া যায়নি!' });
+    }
+
+    if (user.password !== currentPassword) {
+      return res.status(400).json({ message: 'আপনার বর্তমান পাসওয়ার্ডটি সঠিক নয়!' });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: newPassword }
+    });
+
+    res.json({ message: 'আপনার পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে!' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};

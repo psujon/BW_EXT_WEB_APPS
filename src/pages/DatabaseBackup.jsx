@@ -9,9 +9,7 @@ export default function DatabaseBackup({ token }) {
   const [restoringFile, setRestoringFile] = useState(null);
   const [refresh, setRefresh] = useState(false);
 
-  const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:5000/api/backup'
-    : `http://${window.location.hostname}:5000/api/backup`;
+  const API_BASE = '/api/backup';
 
   useEffect(() => {
     setLoading(true);
@@ -124,13 +122,13 @@ export default function DatabaseBackup({ token }) {
             <Database size={18} className="text-sky-400" />
             ফুল ডাটাবেজ ব্যাকআপ (Total DB Backup)
           </h3>
-          
+
           <p className="text-xs text-slate-400 mb-6 leading-relaxed">
             এই ব্যাকআপ বাটনটিতে ক্লিক করলে ডাটাবেজ, সমস্ত টেবিল স্কিমা (CREATE TABLE) ও টেবিলের যাবতীয় রেকর্ডসহ একটি সম্পূর্ণ রিস্টোরযোগ্য <code>.sql</code> ফাইল তৈরি হবে।
           </p>
 
-          <button 
-            onClick={handleTriggerBackup} 
+          <button
+            onClick={handleTriggerBackup}
             className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-medium py-2 px-4 rounded-lg shadow-lg shadow-sky-500/10 transition-colors duration-200 cursor-pointer text-sm font-semibold flex items-center justify-center gap-2"
             disabled={backingUp}
           >

@@ -12,7 +12,7 @@ export default function PendingBuyerOrder({ token }) {
 
   const fetchRequests = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/approvals/order-increase/pending', {
+    fetch('/api/approvals/order-increase/pending', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -30,7 +30,7 @@ export default function PendingBuyerOrder({ token }) {
   const handleApprove = (id) => {
     if (!window.confirm('আপনি কি এই বায়ার অর্ডার বৃদ্ধির আবেদনটি অনুমোদন করতে চান?')) return;
 
-    fetch(`http://localhost:5000/api/approvals/order-increase/${id}/approve`, {
+    fetch(`/api/approvals/order-increase/${id}/approve`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -49,7 +49,7 @@ export default function PendingBuyerOrder({ token }) {
   const handleReject = (id) => {
     if (!window.confirm('আপনি কি এই বায়ার অর্ডার বৃদ্ধির আবেদনটি বাতিল করতে চান?')) return;
 
-    fetch(`http://localhost:5000/api/approvals/order-increase/${id}/reject`, {
+    fetch(`/api/approvals/order-increase/${id}/reject`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${token}` }
     })

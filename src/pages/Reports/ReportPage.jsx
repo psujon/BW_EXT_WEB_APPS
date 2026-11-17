@@ -135,13 +135,13 @@ export default function ReportPage({ token }) {
     const headers = { 'Authorization': `Bearer ${token}` };
 
     // Fetch Sections
-    fetch('http://localhost:5000/api/sections', { headers })
+    fetch('/api/sections', { headers })
       .then(res => res.json())
       .then(data => setSections(Array.isArray(data) ? data : []))
       .catch(console.error);
 
     // Fetch Active Employees for Card No dropdown
-    fetch('http://localhost:5000/api/employees', { headers })
+    fetch('/api/employees', { headers })
       .then(res => res.json())
       .then(data => setEmployees(Array.isArray(data) ? data : []))
       .catch(console.error);
@@ -178,7 +178,7 @@ export default function ReportPage({ token }) {
       params.append('search', selectedCardNo);
     }
 
-    const pdfUrl = `http://localhost:5000/api/reports/pdf/employee?${params.toString()}`;
+    const pdfUrl = `/api/reports/pdf/employee?${params.toString()}`;
     const pdfWin = window.open(pdfUrl, '_blank');
     if (!pdfWin) toast.error('পপ-আপ উইন্ডো ব্লক করা আছে! দয়া করে ব্রাউজারে পপ-আপ অনুমতি দিন।');
     else toast.success('এমপ্লয়ী লিস্ট PDF রিপোর্ট অন্য ট্যাবে চালু করা হয়েছে!');
@@ -194,7 +194,7 @@ export default function ReportPage({ token }) {
       toast.error('দয়া করে তারিখ (হতে) এবং তারিখ (পর্যন্ত) সিলেক্ট করুন!');
       return;
     }
-    const pdfUrl = `http://localhost:5000/api/reports/pdf/monthly-production?${buildQueryParams()}`;
+    const pdfUrl = `/api/reports/pdf/monthly-production?${buildQueryParams()}`;
     const pdfWin = window.open(pdfUrl, '_blank');
     if (!pdfWin) toast.error('পপ-আপ উইন্ডো ব্লক করা আছে! দয়া করে ব্রাউজারে পপ-আপ অনুমতি দিন।');
     else toast.success('মান্থলি প্রোডাকশন রিপোর্ট অন্য ট্যাবে চালু করা হয়েছে!');
@@ -210,7 +210,7 @@ export default function ReportPage({ token }) {
       toast.error('দয়া করে তারিখ (হতে) এবং তারিখ (পর্যন্ত) সিলেক্ট করুন!');
       return;
     }
-    const pdfUrl = `http://localhost:5000/api/reports/pdf/monthly-wages?${buildQueryParams()}`;
+    const pdfUrl = `/api/reports/pdf/monthly-wages?${buildQueryParams()}`;
     const pdfWin = window.open(pdfUrl, '_blank');
     if (!pdfWin) toast.error('পপ-আপ উইন্ডো ব্লক করা আছে! দয়া করে ব্রাউজারে পপ-আপ অনুমতি দিন।');
     else toast.success('মান্থলি ওয়েজেস রিপোর্ট অন্য ট্যাবে চালু করা হয়েছে!');
@@ -226,7 +226,7 @@ export default function ReportPage({ token }) {
       toast.error('দয়া করে তারিখ (হতে) এবং তারিখ (পর্যন্ত) সিলেক্ট করুন!');
       return;
     }
-    const pdfUrl = `http://localhost:5000/api/reports/pdf/monthly-production-statement?${buildQueryParams()}`;
+    const pdfUrl = `/api/reports/pdf/monthly-production-statement?${buildQueryParams()}`;
     const pdfWin = window.open(pdfUrl, '_blank');
     if (!pdfWin) toast.error('পপ-আপ উইন্ডো ব্লক করা আছে! দয়া করে ব্রাউজারে পপ-আপ অনুমতি দিন।');
     else toast.success('মান্থলি প্রোডাকশন সামারী রিপোর্ট অন্য ট্যাবে চালু করা হয়েছে!');
@@ -238,7 +238,7 @@ export default function ReportPage({ token }) {
       toast.error('দয়া করে সেকশন সিলেক্ট করুন!');
       return;
     }
-    const pdfUrl = `http://localhost:5000/api/reports/pdf/monthly-rate-sheet?${buildQueryParams()}`;
+    const pdfUrl = `/api/reports/pdf/monthly-rate-sheet?${buildQueryParams()}`;
     const pdfWin = window.open(pdfUrl, '_blank');
     if (!pdfWin) toast.error('পপ-আপ উইন্ডো ব্লক করা আছে! দয়া করে ব্রাউজারে পপ-আপ অনুমতি দিন।');
     else toast.success('মান্থলি রেট শীট PDF অন্য ট্যাবে চালু করা হয়েছে!');
@@ -246,7 +246,7 @@ export default function ReportPage({ token }) {
 
   // 6. Buyer Order PDF
   const handleOpenBuyerOrderPdf = () => {
-    const pdfUrl = `http://localhost:5000/api/reports/pdf/employee?${buildQueryParams()}`;
+    const pdfUrl = `/api/reports/pdf/employee?${buildQueryParams()}`;
     const pdfWin = window.open(pdfUrl, '_blank');
     if (!pdfWin) toast.error('পপ-আপ উইন্ডো ব্লক করা আছে! দয়া করে ব্রাউজারে পপ-আপ অনুমতি দিন।');
     else toast.success('বায়ার অর্ডার PDF রিপোর্ট অন্য ট্যাবে চালু করা হয়েছে!');
@@ -254,20 +254,7 @@ export default function ReportPage({ token }) {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <FileText size={22} className="text-sky-400" />
-            সেন্ট্রাল রিপোর্টস প্যানেল (Reports Management)
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            উপরে গ্লোবাল ফিল্টার সিলেক্ট করে নিচে গ্রিডে থাকা যেকোনো রিপোর্টে ক্লিক করুন। সার্ভার থেকে সরাসরি PDF ফাইল চালু হবে।
-          </p>
-        </div>
-      </div>
-
-      {/* Global Filter Form Card (Section, Card No with Type & Select, Date From, Date To) */}
+      
       <div className="relative z-40 bg-[#18223c]/75 backdrop-blur-md border border-white/6 rounded-2xl p-6 shadow-xl space-y-4">
         <div className="flex items-center justify-between border-b border-white/6 pb-3">
           <div className="flex items-center gap-2">

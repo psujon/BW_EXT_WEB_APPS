@@ -17,8 +17,8 @@ export default function UserPermission({ token }) {
     const headers = { 'Authorization': `Bearer ${token}` };
 
     Promise.all([
-      fetch('http://localhost:5000/api/users', { headers }).then(res => res.json()),
-      fetch('http://localhost:5000/api/users/permissions', { headers }).then(res => res.json())
+      fetch('/api/users', { headers }).then(res => res.json()),
+      fetch('/api/users/permissions', { headers }).then(res => res.json())
     ])
       .then(([usersData, permsData]) => {
         setUsers(Array.isArray(usersData) ? usersData : []);
@@ -52,7 +52,7 @@ export default function UserPermission({ token }) {
     const user = users.find(u => u.id === userId);
     const uName = user ? user.name : 'ইউজার';
 
-    fetch(`http://localhost:5000/api/users/${userId}/permission`, {
+    fetch(`/api/users/${userId}/permission`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

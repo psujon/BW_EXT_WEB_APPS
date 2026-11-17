@@ -259,12 +259,24 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
     });
 
     const firstRecord = list[0] || {};
-    const empCardNo = firstRecord.card_no || 'BH10040';
-
+    let empCardNo = 'BH10040';
     let empName = 'Mst. Selina Parvin';
+
     if (firstRecord.card_no) {
-      const emp = await prisma.employee.findFirst({ where: { card_no: firstRecord.card_no } });
-      if (emp && emp.name) empName = emp.name;
+      let emp = null;
+      const parsedId = parseInt(firstRecord.card_no);
+      if (!isNaN(parsedId)) {
+        emp = await prisma.employee.findUnique({ where: { id: parsedId } });
+      }
+      if (!emp) {
+        emp = await prisma.employee.findFirst({ where: { card_no: firstRecord.card_no } });
+      }
+      if (emp) {
+        empCardNo = emp.card_no;
+        if (emp.name) empName = emp.name;
+      } else {
+        empCardNo = firstRecord.card_no;
+      }
     }
 
     // Fetch target section name dynamically
@@ -574,12 +586,24 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
     const pieceRates = await prisma.pieceRate.findMany();
 
     const firstRecord = list[0] || {};
-    const empCardNo = firstRecord.card_no || 'BH10040';
-
+    let empCardNo = 'BH10040';
     let empName = 'Mst. Selina Parvin';
+
     if (firstRecord.card_no) {
-      const emp = await prisma.employee.findFirst({ where: { card_no: firstRecord.card_no } });
-      if (emp && emp.name) empName = emp.name;
+      let emp = null;
+      const parsedId = parseInt(firstRecord.card_no);
+      if (!isNaN(parsedId)) {
+        emp = await prisma.employee.findUnique({ where: { id: parsedId } });
+      }
+      if (!emp) {
+        emp = await prisma.employee.findFirst({ where: { card_no: firstRecord.card_no } });
+      }
+      if (emp) {
+        empCardNo = emp.card_no;
+        if (emp.name) empName = emp.name;
+      } else {
+        empCardNo = firstRecord.card_no;
+      }
     }
     const sectionName = firstRecord.section?.name || 'Auto Winding';
     const monthStr = startDate ? new Date(startDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : 'July 2026';

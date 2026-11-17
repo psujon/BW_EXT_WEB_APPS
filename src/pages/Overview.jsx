@@ -8,7 +8,7 @@ export default function Overview({ token }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/stats', {
+    fetch('/api/stats', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())

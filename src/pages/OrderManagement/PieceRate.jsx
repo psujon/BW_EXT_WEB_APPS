@@ -83,9 +83,8 @@ function SearchableSelect({
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
-                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
-                  }`}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                    }`}
                 >
                   <span className="truncate">{opt.label}</span>
                   {opt.sublabel && (
@@ -156,7 +155,7 @@ export default function PieceRate({ token }) {
   }, []);
 
   const fetchSections = () => {
-    fetch('http://localhost:5000/api/sections', {
+    fetch('/api/sections', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -165,7 +164,7 @@ export default function PieceRate({ token }) {
   };
 
   const fetchStyles = () => {
-    fetch('http://localhost:5000/api/styles', {
+    fetch('/api/styles', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -174,7 +173,7 @@ export default function PieceRate({ token }) {
   };
 
   const fetchProcesses = () => {
-    fetch('http://localhost:5000/api/processes', {
+    fetch('/api/processes', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -183,7 +182,7 @@ export default function PieceRate({ token }) {
   };
 
   const fetchColors = () => {
-    fetch('http://localhost:5000/api/colors', {
+    fetch('/api/colors', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -193,7 +192,7 @@ export default function PieceRate({ token }) {
 
   const fetchRates = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/piece-rates', {
+    fetch('/api/piece-rates', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -250,7 +249,7 @@ export default function PieceRate({ token }) {
 
     try {
       if (editingId !== null) {
-        const res = await fetch(`http://localhost:5000/api/piece-rates/${editingId}`, {
+        const res = await fetch(`/api/piece-rates/${editingId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -264,7 +263,7 @@ export default function PieceRate({ token }) {
         toast.success('পিস রেট সফলভাবে আপডেট করা হয়েছে!');
         setEditingId(null);
       } else {
-        const res = await fetch('http://localhost:5000/api/piece-rates', {
+        const res = await fetch('/api/piece-rates', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -325,7 +324,7 @@ export default function PieceRate({ token }) {
 
   const handleDelete = (id) => {
     if (window.confirm('আপনি কি এই রেটটি ডিলিট করতে চান?')) {
-      fetch(`http://localhost:5000/api/piece-rates/${id}`, {
+      fetch(`/api/piece-rates/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -360,10 +359,10 @@ export default function PieceRate({ token }) {
   // Process wise color load
   const formFilteredColors = (sectionId && styleId && processId)
     ? colors.filter(c =>
-        c.section_id === parseInt(sectionId) &&
-        c.style_id === parseInt(styleId) &&
-        c.process_id === parseInt(processId)
-      )
+      c.section_id === parseInt(sectionId) &&
+      c.style_id === parseInt(styleId) &&
+      c.process_id === parseInt(processId)
+    )
     : [];
 
   return (
@@ -399,7 +398,7 @@ export default function PieceRate({ token }) {
               >
                 <option value="">Select Section</option>
                 {sections?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -435,10 +434,10 @@ export default function PieceRate({ token }) {
                   {!sectionId
                     ? "First select a section"
                     : !styleId
-                    ? "First select a style"
-                    : formFilteredProcesses.length === 0
-                    ? "No processes found for this section & style"
-                    : "Select Process"}
+                      ? "First select a style"
+                      : formFilteredProcesses.length === 0
+                        ? "No processes found for this section & style"
+                        : "Select Process"}
                 </option>
                 {formFilteredProcesses.map((p) => (
                   <option key={p.id} value={p.id}>{p.process_name}</option>
@@ -459,10 +458,10 @@ export default function PieceRate({ token }) {
                   {!sectionId || !styleId
                     ? "First select section & style"
                     : !processId
-                    ? "First select a process"
-                    : formFilteredColors.length === 0
-                    ? "No colors found for this process"
-                    : "Select Color"}
+                      ? "First select a process"
+                      : formFilteredColors.length === 0
+                        ? "No colors found for this process"
+                        : "Select Color"}
                 </option>
                 {formFilteredColors.map((c) => (
                   <option key={c.id} value={c.id}>{c.color_name}</option>

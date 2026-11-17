@@ -59,7 +59,7 @@ export default function EmployeeInfo({ token }) {
     setSearching(true);
     setSearchResult(null);
     try {
-      const res = await fetch(`http://localhost:5000/api/employees/external-search?card_no=${encodeURIComponent(searchCardNo.trim())}`, {
+      const res = await fetch(`/api/employees/external-search?card_no=${encodeURIComponent(searchCardNo.trim())}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -104,7 +104,7 @@ export default function EmployeeInfo({ token }) {
   }, []);
 
   const fetchSections = () => {
-    fetch('http://localhost:5000/api/sections', {
+    fetch('/api/sections', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -114,7 +114,7 @@ export default function EmployeeInfo({ token }) {
 
   const fetchEmployees = () => {
     setLoading(true);
-    fetch('http://localhost:5000/api/employees', {
+    fetch('/api/employees', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -145,7 +145,7 @@ export default function EmployeeInfo({ token }) {
     };
 
     if (editingId !== null) {
-      fetch(`http://localhost:5000/api/employees/${editingId}`, {
+      fetch(`/api/employees/${editingId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -166,7 +166,7 @@ export default function EmployeeInfo({ token }) {
         })
         .catch(err => toast.error(err.message));
     } else {
-      fetch('http://localhost:5000/api/employees', {
+      fetch('/api/employees', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -221,7 +221,7 @@ export default function EmployeeInfo({ token }) {
 
   const handleDelete = (id) => {
     if (window.confirm('আপনি কি এই ইমপ্লয়ী রেকর্ডটি ডিলিট করতে চান?')) {
-      fetch(`http://localhost:5000/api/employees/${id}`, {
+      fetch(`/api/employees/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -309,7 +309,7 @@ export default function EmployeeInfo({ token }) {
               >
                 <option value="">Select Section</option>
                 {sections?.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>

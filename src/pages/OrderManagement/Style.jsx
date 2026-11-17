@@ -16,16 +16,7 @@ export default function Style({ token }) {
 
   // Table Search State
   const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredStyles = styles.filter(item => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      (item.style_no && item.style_no.toLowerCase().includes(q)) ||
-      (item.buyer_name && item.buyer_name.toLowerCase().includes(q)) ||
-      (item.status && item.status.toLowerCase().includes(q))
-    );
-  });
+  const [activeSearch, setActiveSearch] = useState('');
 
   useEffect(() => {
     fetchStyles();
@@ -33,7 +24,7 @@ export default function Style({ token }) {
   }, []);
 
   const fetchBuyers = () => {
-    fetch('http://localhost:5000/api/buyers', {
+    fetch('/api/buyers', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -43,9 +34,16 @@ export default function Style({ token }) {
       .catch(err => console.error('Error fetching buyers:', err));
   };
 
-  const fetchStyles = () => {
+  const fetchStyles = (search = '') => {
     setLoading(true);
-    fetch('http://localhost:5000/api/styles', {
+    let url = '/api/styles';
+    if (search && search.trim() !== '') {
+      url += `?search=${encodeURIComponent(search.trim())}`;
+    } else {
+      url += '?limit=50';
+    }
+
+    fetch(url, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -57,6 +55,24 @@ export default function Style({ token }) {
         console.error('Error fetching styles:', err);
         setLoading(false);
       });
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault();
+    const q = searchQuery.trim();
+    setActiveSearch(q);
+    fetchStyles(q);
+    if (q) {
+      toast.success(`"${q}" এর ফলাফল সরাসরি ডাটাবেজ থেকে ফেচ করা হয়েছে!`);
+    } else {
+      toast.success('ডাটাবেজ থেকে সর্বশেষ ৫০ টি রেকর্ড লোড করা হয়েছে!');
+    }
+  };
+
+  const handleResetSearch = () => {
+    setSearchQuery('');
+    setActiveSearch('');
+    fetchStyles('');
   };
 
   const handleSubmit = async (e) => {
@@ -96,7 +112,7 @@ export default function Style({ token }) {
 
     try {
       if (editingId !== null) {
-        const res = await fetch(`http://localhost:5000/api/styles/${editingId}`, {
+        const res = await fetch(`/api/styles/${editingId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -110,7 +126,7 @@ export default function Style({ token }) {
         toast.success('স্টাইল তথ্য সফলভাবে আপডেট করা হয়েছে!');
         setEditingId(null);
       } else {
-        const res = await fetch('http://localhost:5000/api/styles', {
+        const res = await fetch('/api/styles', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -128,7 +144,7 @@ export default function Style({ token }) {
       setBuyerId('');
       setStatus('Active');
       setFormError('');
-      fetchStyles();
+      fetchStyles(activeSearch);
     } catch (err) {
       setFormError(err.message);
       toast.error(err.message);
@@ -138,7 +154,7 @@ export default function Style({ token }) {
   const handleEdit = (styleItem) => {
     setEditingId(styleItem.id);
     setFormError('');
-    setStyleNo(styleItem.style_no);
+    setStyleNo(styleItem.style_no || '');
     setBuyerId(styleItem.buyer_id || '');
     setStatus(styleItem.status || 'Active');
   };
@@ -153,7 +169,7 @@ export default function Style({ token }) {
 
   const handleDelete = (id) => {
     if (window.confirm('আপনি কি এই স্টাইলটি ডিলিট করতে চান?')) {
-      fetch(`http://localhost:5000/api/styles/${id}`, {
+      fetch(`/api/styles/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -163,8 +179,8 @@ export default function Style({ token }) {
           return data;
         })
         .then(() => {
-          toast.success('স্টাইল সফলভাবে ডিলিট করা হয়েছে!');
-          fetchStyles();
+          toast.success('স্টাইল রেকর্ড সফলভাবে ডিলিট করা হয়েছে!');
+          fetchStyles(activeSearch);
           if (editingId === id) {
             handleCancelEdit();
           }
@@ -278,31 +294,40 @@ export default function Style({ token }) {
             <div className="flex items-center gap-3">
               <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">চলমান স্টাইল তালিকা</h3>
               <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
-                {searchQuery ? `ফলাফল: ${filteredStyles.length} টি` : `মোট স্টাইল: ${styles.length} টি`}
+                {activeSearch ? `ডাটাবেজ ফলাফল: ${styles.length} টি` : `সর্বশেষ ৫০ টি রেকর্ড`}
               </span>
             </div>
 
-            {/* Real-time Style Search Option */}
-            <div className="relative w-full sm:w-64">
-              <input
-                type="text"
-                className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
-                placeholder="স্টাইল নম্বর, বায়ার বা অবস্থা..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 cursor-pointer"
-                  title="সার্চ রিসেট করুন"
-                >
-                  <XCircle size={14} />
-                </button>
-              )}
-            </div>
+            {/* Direct Database Search Option with Search Button */}
+            <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-60">
+                <input
+                  type="text"
+                  className="w-full bg-[#0b0f19]/70 border border-white/10 rounded-xl py-1.5 pl-9 pr-8 text-slate-100 text-xs focus:outline-none focus:border-sky-500 transition-all placeholder:text-slate-500"
+                  placeholder="স্টাইল নম্বর, বায়ার বা অবস্থা..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleResetSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
+                    title="সার্চ রিসেট করুন"
+                  >
+                    <XCircle size={14} />
+                  </button>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="bg-sky-500 hover:bg-sky-400 text-white font-medium px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-md shadow-sky-500/20"
+              >
+                <Search size={14} />
+                <span>সার্চ</span>
+              </button>
+            </form>
           </div>
 
           {loading ? (
@@ -320,14 +345,14 @@ export default function Style({ token }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/6">
-                  {filteredStyles.length === 0 ? (
+                  {styles.length === 0 ? (
                     <tr>
                       <td colSpan="5" className="text-center py-10 text-slate-400 space-y-2">
                         <div>কোন স্টাইল রেকর্ড খুঁজে পাওয়া যায়নি</div>
-                        {searchQuery && (
+                        {activeSearch && (
                           <button
                             type="button"
-                            onClick={() => setSearchQuery('')}
+                            onClick={handleResetSearch}
                             className="text-xs text-sky-400 hover:underline cursor-pointer font-medium"
                           >
                             সার্চ রিসেট করুন
@@ -336,7 +361,7 @@ export default function Style({ token }) {
                       </td>
                     </tr>
                   ) : (
-                    filteredStyles.map((item, index) => (
+                    styles.map((item, index) => (
                       <tr key={item.id} className="hover:bg-white/2 transition-colors">
                         <td className="py-3.5 px-4 text-slate-400">{index + 1}</td>
                         <td className="py-3.5 px-4"><strong className="text-sky-400">{item.style_no}</strong></td>

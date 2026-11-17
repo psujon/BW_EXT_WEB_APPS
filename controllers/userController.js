@@ -135,3 +135,23 @@ exports.toggleUserPermission = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+exports.updatePassword = async (req, res) => {
+  const { id } = req.params;
+  const { newPassword } = req.body;
+
+  if (!newPassword || newPassword.trim() === '') {
+    return res.status(400).json({ message: 'নতুন পাসওয়ার্ড প্রদান করুন' });
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { password: newPassword.trim() }
+    });
+    res.json({ message: 'ইউজার পাসওয়ার্ড সফলভাবে আপডেট করা হয়েছে!' });
+  } catch (err) {
+    console.error('Error updating user password:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
