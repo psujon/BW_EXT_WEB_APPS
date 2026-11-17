@@ -49,7 +49,7 @@ model Production {
   process_id      Int
   color_id        Int
   production_date DateTime  @db.Date
-  card_no         String    @db.VarChar(100)
+  card_no         Int
   quantity        Int
   processed_by    Int?
   processed_date  DateTime? @default(now())

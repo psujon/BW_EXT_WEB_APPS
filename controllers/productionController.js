@@ -25,16 +25,13 @@ exports.getAll = async (req, res) => {
         String(e.id) === q
       );
 
-      const matchingCardNos = [
-        ...matchingEmps.map(e => String(e.id)),
-        ...matchingEmps.map(e => e.card_no),
-        q
-      ];
+      const matchingCardIds = matchingEmps.map(e => e.id);
+      const asNum = parseInt(q);
+      if (!isNaN(asNum) && !matchingCardIds.includes(asNum)) {
+        matchingCardIds.push(asNum);
+      }
 
-      where.OR = [
-        { card_no: { in: matchingCardNos } },
-        { card_no: { contains: q } }
-      ];
+      where.card_no = { in: matchingCardIds };
     }
 
     if (from_date || to_date) {
@@ -178,7 +175,7 @@ exports.create = async (req, res) => {
           process_id: parseInt(process_id),
           color_id: parseInt(color_id),
           production_date: pDate,
-          card_no: String(empId), // STRICTLY save the Employee ID (আইডি কলাম)!
+          card_no: parseInt(empId), // STRICTLY save the Employee ID (INT)!
           quantity: parseInt(item.quantity),
           processed_by: userId,
           processed_date: new Date()
@@ -208,7 +205,7 @@ exports.create = async (req, res) => {
           process_id: parseInt(process_id),
           color_id: parseInt(color_id),
           production_date: pDate,
-          card_no: String(empId), // STRICTLY save the Employee ID (আইডি কলাম)!
+          card_no: parseInt(empId), // STRICTLY save the Employee ID (INT)!
           quantity: parseInt(quantity),
           processed_by: userId,
           processed_date: new Date()
