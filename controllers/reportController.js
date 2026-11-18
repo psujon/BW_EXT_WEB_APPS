@@ -1481,14 +1481,14 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
           <div class="company-name">${companyName}</div>
           <div class="company-address">${companyAddress}</div>
           <div>
-            <div class="sheet-title-box">SECTION PIECE RATE SHEET</div>
+            <div class="sheet-title-box">PIECE RATE SHEET</div>
           </div>
         </div>
 
         <table class="meta-table">
           <tr>
             <td style="text-align: left; width: 40%;">Section : ${sectionName}</td>
-            <td style="text-align: center; width: 30%;">Total Items : ${rateList.length}</td>
+            <td style="text-align: center; width: 30%;"></td>
             <td style="text-align: right; width: 30%;">Date : ${currentDateStr}</td>
           </tr>
         </table>
