@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCheck, Edit, Trash2, XCircle, Plus, Calendar, Search } from 'lucide-react';
+import { UserCheck, Edit, Trash2, XCircle, Plus, Calendar, Search, Save, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const getTodayDateString = () => {
@@ -29,6 +29,7 @@ export default function EmployeeInfo({ token }) {
   const [searchCardNo, setSearchCardNo] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
+  const [savingExternal, setSavingExternal] = useState(false);
 
   // Table Search Filter State
   const [tableSearchQuery, setTableSearchQuery] = useState('');
@@ -74,7 +75,43 @@ export default function EmployeeInfo({ token }) {
     }
   };
 
-  const handleAutoFillForm = () => {
+  const handleSaveExternalDirect = async () => {
+    if (!searchResult) return;
+    setSavingExternal(true);
+    try {
+      const res = await fetch('/api/employees/save-external', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          card_no: searchResult.emp_id,
+          name: searchResult.emp_name,
+          designation: searchResult.designation_name,
+          section_name: searchResult.section_name,
+          section_code: searchResult.section_code,
+          join_date: searchResult.join_date
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'ডাটাবেজে সংরক্ষণ ব্যর্থ হয়েছে');
+
+      toast.success(data.message || 'এমপ্লয়ী তথ্য সফলভাবে ডাটাবেজে সংরক্ষণ করা হয়েছে!');
+      setShowSearchModal(false);
+      setSearchResult(null);
+      setSearchCardNo('');
+
+      fetchEmployees();
+      fetchSections();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSavingExternal(false);
+    }
+  };
+
+  const handleAutoFillForm = async () => {
     if (!searchResult) return;
     setCardNo(searchResult.emp_id || '');
     setName(searchResult.emp_name || '');
@@ -83,14 +120,38 @@ export default function EmployeeInfo({ token }) {
       setJoinDate(searchResult.join_date);
     }
 
-    if (searchResult.section_name && sections.length > 0) {
+    if (searchResult.section_name) {
       const matchedSec = sections.find(s =>
         s.name.toLowerCase().trim() === searchResult.section_name.toLowerCase().trim() ||
         searchResult.section_name.toLowerCase().includes(s.name.toLowerCase()) ||
         s.name.toLowerCase().includes(searchResult.section_name.toLowerCase())
       );
+
       if (matchedSec) {
         setSectionId(matchedSec.id);
+      } else {
+        // Section not present in MySQL yet; auto-create it so the form submits smoothly
+        try {
+          const secRes = await fetch('/api/sections', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              name: searchResult.section_name,
+              code: searchResult.section_code || 'AUTO',
+              status: 'Active'
+            })
+          });
+          const newSec = await secRes.json();
+          if (secRes.ok && newSec.id) {
+            setSections(prev => [newSec, ...prev]);
+            setSectionId(newSec.id);
+          }
+        } catch (e) {
+          console.error('Error auto-creating section:', e);
+        }
       }
     }
 
@@ -499,26 +560,37 @@ export default function EmployeeInfo({ token }) {
 
             {/* Search Result Card */}
             {searchResult && (
-              <div className="bg-[#0b0f19]/60 border border-sky-500/30 rounded-xl p-4 space-y-3 animate-fadeIn">
-                <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-xs font-bold text-sky-400">এমপ্লয়ী তথ্য পাওয়া গিয়েছে</span>
+              <div className="bg-[#0b0f19]/60 border border-sky-500/30 rounded-xl p-4 space-y-3.5 animate-fadeIn">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-sky-400">এমপ্লয়ী তথ্য পাওয়া গিয়েছে</span>
+                    {searchResult.already_saved ? (
+                      <span className="text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-semibold">
+                        ইতিমধ্যে ডাটাবেজে আছে
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-md font-semibold">
+                        নতুন এমপ্লয়ী
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[11px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded-md font-mono font-bold">
                     {searchResult.emp_id}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900/40 p-3 rounded-lg border border-white/5">
                   <div>
                     <span className="text-slate-400 block text-[11px]">নাম (Name):</span>
-                    <span className="font-semibold text-slate-200">{searchResult.emp_name || '—'}</span>
+                    <span className="font-semibold text-slate-100">{searchResult.emp_name || '—'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">পদবী (Designation):</span>
-                    <span className="font-semibold text-slate-200">{searchResult.designation_name || '—'}</span>
+                    <span className="font-semibold text-slate-100">{searchResult.designation_name || '—'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">সেকশন (Section):</span>
-                    <span className="font-semibold text-slate-200">{searchResult.section_name || '—'}</span>
+                    <span className="font-semibold text-emerald-400">{searchResult.section_name || '—'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">জয়েন ডেট (Join Date):</span>
@@ -526,13 +598,25 @@ export default function EmployeeInfo({ token }) {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleAutoFillForm}
-                  className="w-full mt-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <span>ফর্মে ফিলাম করুন (Auto Fill Form)</span>
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleSaveExternalDirect}
+                    disabled={savingExternal}
+                    className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-lg shadow-emerald-500/10 transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Save size={15} />
+                    <span>{savingExternal ? 'ডাটাবেজে সংরক্ষণ হচ্ছে...' : 'সরাসরি ডাটাবেজে সেভ করুন'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAutoFillForm}
+                    disabled={savingExternal}
+                    className="bg-white/10 hover:bg-white/15 text-slate-200 font-semibold py-2.5 px-3 rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-1 border border-white/10"
+                  >
+                    <span>ফর্মে পূরণ করুন</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
