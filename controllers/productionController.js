@@ -1,4 +1,19 @@
 const { prisma } = require('../db');
+const { Prisma } = require('@prisma/client');
+
+// Determine whether Prisma Client expects card_no as String or Int
+const formatCardNoForPrisma = (empId) => {
+  try {
+    const cardNoField = Prisma.dmmf?.datamodel?.models
+      ?.find(m => m.name === 'Production')
+      ?.fields?.find(f => f.name === 'card_no');
+
+    if (cardNoField && cardNoField.type === 'String') {
+      return String(empId);
+    }
+  } catch (_) {}
+  return parseInt(empId);
+};
 
 exports.getAll = async (req, res) => {
   const { section_name, style_no, process_name, color_name, card_no, from_date, to_date } = req.query;
@@ -175,16 +190,28 @@ exports.create = async (req, res) => {
           process_id: parseInt(process_id),
           color_id: parseInt(color_id),
           production_date: pDate,
-          card_no: parseInt(empId), // STRICTLY save the Employee ID (INT)!
+          card_no: formatCardNoForPrisma(empId),
           quantity: parseInt(item.quantity),
           processed_by: userId,
           processed_date: new Date()
         });
       }
 
-      await prisma.production.createMany({
-        data: recordsData
-      });
+      try {
+        await prisma.production.createMany({
+          data: recordsData
+        });
+      } catch (createManyErr) {
+        if (createManyErr.message && createManyErr.message.includes('Expected String, provided Int')) {
+          const stringRecords = recordsData.map(r => ({ ...r, card_no: String(r.card_no) }));
+          await prisma.production.createMany({ data: stringRecords });
+        } else if (createManyErr.message && createManyErr.message.includes('Expected Int, provided String')) {
+          const intRecords = recordsData.map(r => ({ ...r, card_no: parseInt(r.card_no) }));
+          await prisma.production.createMany({ data: intRecords });
+        } else {
+          throw createManyErr;
+        }
+      }
 
       res.status(201).json({ 
         message: `${validItems.length} টি কার্ড প্রোডাকশন এন্ট্রি সফলভাবে সংরক্ষণ করা হয়েছে! (কার্ড আইডি সংরক্ষিত)`,
@@ -198,19 +225,34 @@ exports.create = async (req, res) => {
           message: `কার্ড নম্বর "${card_no || employee_id}" এর জন্য কোনো ভ্যালিড ইমপ্লয়ী আইডি পাওয়া যায়নি!` 
         });
       }
-      const created = await prisma.production.create({
-        data: {
-          section_id: parseInt(section_id),
-          style_id: parseInt(style_id),
-          process_id: parseInt(process_id),
-          color_id: parseInt(color_id),
-          production_date: pDate,
-          card_no: parseInt(empId), // STRICTLY save the Employee ID (INT)!
-          quantity: parseInt(quantity),
-          processed_by: userId,
-          processed_date: new Date()
+      const singleData = {
+        section_id: parseInt(section_id),
+        style_id: parseInt(style_id),
+        process_id: parseInt(process_id),
+        color_id: parseInt(color_id),
+        production_date: pDate,
+        card_no: formatCardNoForPrisma(empId),
+        quantity: parseInt(quantity),
+        processed_by: userId,
+        processed_date: new Date()
+      };
+
+      let created;
+      try {
+        created = await prisma.production.create({ data: singleData });
+      } catch (createSingleErr) {
+        if (createSingleErr.message && createSingleErr.message.includes('Expected String, provided Int')) {
+          created = await prisma.production.create({
+            data: { ...singleData, card_no: String(singleData.card_no) }
+          });
+        } else if (createSingleErr.message && createSingleErr.message.includes('Expected Int, provided String')) {
+          created = await prisma.production.create({
+            data: { ...singleData, card_no: parseInt(singleData.card_no) }
+          });
+        } else {
+          throw createSingleErr;
         }
-      });
+      }
       res.status(201).json(created);
     } else {
       res.status(400).json({ message: 'কার্ড নম্বর ও কোয়ান্টিটি প্রদান করুন!' });

@@ -374,7 +374,7 @@ export default function ProductionEntry({ token }) {
   const styleOptions = styles?.map((st) => ({
     id: st.id,
     label: st.style_no,
-    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+    sublabel: ''
   })) || [];
 
   // Section + Style wise process load
@@ -545,8 +545,8 @@ export default function ProductionEntry({ token }) {
                     type="text"
                     readOnly
                     className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${item.emp_name
-                        ? 'bg-sky-500/10 border-sky-500/30 text-sky-300 font-semibold'
-                        : 'bg-[#0b0f19]/30 border-red-500/20 text-red-400 placeholder:text-slate-600'
+                      ? 'bg-sky-500/10 border-sky-500/30 text-sky-300 font-semibold'
+                      : 'bg-[#0b0f19]/30 border-red-500/20 text-red-400 placeholder:text-slate-600'
                       }`}
                     value={item.emp_name}
                     placeholder="সেকশন ওয়াইজ ইমপ্লয়ীর নাম"
@@ -562,8 +562,8 @@ export default function ProductionEntry({ token }) {
                     type="number"
                     disabled={!item.emp_name}
                     className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${item.emp_name
-                        ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500'
-                        : 'bg-[#0b0f19]/20 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+                      ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500'
+                      : 'bg-[#0b0f19]/20 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
                       }`}
                     value={item.quantity}
                     onChange={(e) => handleCardFieldChange(item.id, 'quantity', e.target.value)}

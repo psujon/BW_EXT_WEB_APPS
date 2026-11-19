@@ -83,9 +83,8 @@ function SearchableSelect({
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${
-                    isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
-                  }`}
+                  className={`px-3 py-2 text-xs cursor-pointer hover:bg-sky-500/20 hover:text-sky-200 transition-colors flex items-center justify-between ${isSelected ? 'bg-sky-500/20 text-sky-300 font-bold' : 'text-slate-200'
+                    }`}
                 >
                   <span className="truncate">{opt.label}</span>
                   {opt.sublabel && (
@@ -322,16 +321,16 @@ export default function ProductionShow({ token }) {
   // Process wise color filter
   const filteredColors = (searchSection && searchStyle && searchProcess && selectedSecObj && selectedStObj && selectedPrObj)
     ? colors.filter(c =>
-        c.section_id === selectedSecObj.id &&
-        c.style_id === selectedStObj.id &&
-        c.process_id === selectedPrObj.id
-      )
+      c.section_id === selectedSecObj.id &&
+      c.style_id === selectedStObj.id &&
+      c.process_id === selectedPrObj.id
+    )
     : [];
 
   const styleOptions = styles?.map((st) => ({
     id: st.style_no,
     label: st.style_no,
-    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+    sublabel: ''
   })) || [];
 
   const totalQuantity = productionList.reduce((sum, item) => sum + (Number(item.quantity || item.qty) || 0), 0);
@@ -423,10 +422,10 @@ export default function ProductionShow({ token }) {
                 {!searchSection
                   ? "প্রথমে সেকশন সিলেক্ট করুন"
                   : !searchStyle
-                  ? "প্রথমে স্টাইল সিলেক্ট করুন"
-                  : filteredProcesses.length === 0
-                  ? "কোনো প্রসেস পাওয়া যায়নি"
-                  : "সকল প্রসেস (All)"}
+                    ? "প্রথমে স্টাইল সিলেক্ট করুন"
+                    : filteredProcesses.length === 0
+                      ? "কোনো প্রসেস পাওয়া যায়নি"
+                      : "সকল প্রসেস (All)"}
               </option>
               {filteredProcesses.map(pr => (
                 <option key={pr.id} value={pr.process_name}>{pr.process_name}</option>
@@ -447,10 +446,10 @@ export default function ProductionShow({ token }) {
                 {!searchSection || !searchStyle
                   ? "প্রথমে সেকশন ও স্টাইল সিলেক্ট করুন"
                   : !searchProcess
-                  ? "প্রথমে প্রসেস সিলেক্ট করুন"
-                  : filteredColors.length === 0
-                  ? "কোনো কালার পাওয়া যায়নি"
-                  : "সকল কালার (All)"}
+                    ? "প্রথমে প্রসেস সিলেক্ট করুন"
+                    : filteredColors.length === 0
+                      ? "কোনো কালার পাওয়া যায়নি"
+                      : "সকল কালার (All)"}
               </option>
               {filteredColors.map(col => (
                 <option key={col.id} value={col.color_name}>{col.color_name}</option>
@@ -547,8 +546,8 @@ export default function ProductionShow({ token }) {
               {productionList.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="text-center py-12 text-slate-400">
-                    {hasSearched 
-                      ? "ফিল্টার ও ডেট রেঞ্জ অনুযায়ী কোনো প্রোডাকশন রেকর্ড পাওয়া যায়নি" 
+                    {hasSearched
+                      ? "ফিল্টার ও ডেট রেঞ্জ অনুযায়ী কোনো প্রোডাকশন রেকর্ড পাওয়া যায়নি"
                       : "উপরে ফিল্টার ও তারিখ সিলেক্ট করে 'সার্চ করুন' বাটনে ক্লিক দিয়ে রিপোর্ট দেখুন"}
                   </td>
                 </tr>
