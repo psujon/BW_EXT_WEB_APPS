@@ -313,12 +313,12 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
 
     const rowsHtml = groupedList.map((grp) => `
       <tr>
-        <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-size: 8pt;">${grp.dateDay}</td>
-        <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-size: 8pt; font-weight: bold;">${grp.styleNo}</td>
-        <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-size: 8pt;">${grp.processName}</td>
-        <td style="border: 1px solid #000; padding: 4px 6px; text-align: left; font-size: 8pt;">${grp.colorName}</td>
-        <td style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-size: 8pt;">${grp.totalQuantity.toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 4px 6px; text-align: center; font-size: 8pt;"></td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.dateDay}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; font-weight: bold; line-height: 1.2;">${grp.styleNo}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.processName}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.colorName}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${grp.totalQuantity.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: center; font-size: 7pt;"></td>
       </tr>
     `).join('');
 
@@ -400,15 +400,17 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
           }
           table.data-table th {
             border: 1.5px solid #000;
-            padding: 5px 6px;
-            font-size: 8pt;
+            padding: 4px 5px;
+            font-size: 7.5pt;
             font-weight: bold;
             text-transform: uppercase;
             background-color: #fff;
           }
           table.data-table td {
             border: 1px solid #000;
-            padding: 4px 6px;
+            padding: 3px 5px;
+            font-size: 7pt;
+            line-height: 1.2;
           }
           .total-row td {
             border: 1.5px solid #000;
@@ -470,8 +472,8 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width: 15%; text-align: left;">DATE OF ISSUE</th>
-              <th style="width: 18%; text-align: left;">STYLE NO</th>
+              <th style="width: 10%; text-align: left;">DATE OF ISSUE</th>
+              <th style="width: 23%; text-align: left;">STYLE NO</th>
               <th style="width: 27%; text-align: left;">TYPE</th>
               <th style="width: 18%; text-align: left;">COLOR</th>
               <th style="width: 10%; text-align: right;">QTY</th>
@@ -481,28 +483,28 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
           <tbody>
             ${rowsHtml.length > 0 ? rowsHtml : `
               <tr>
-                <td style="border:1px solid #000; padding:4px;">1</td>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">BLACK</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px;"></td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">1</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; font-weight:bold;">MEPI</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">100% OR COTTON 2/40</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">BLACK</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; text-align:right;">34.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;"></td>
               </tr>
               <tr>
-                <td style="border:1px solid #000; padding:4px;">1</td>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">BROWN ICE</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px;"></td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">1</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; font-weight:bold;">MEPI</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">100% OR COTTON 2/40</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">BROWN ICE</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; text-align:right;">34.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;"></td>
               </tr>
               <tr>
-                <td style="border:1px solid #000; padding:4px;">1</td>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">ECRU</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px;"></td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">1</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; font-weight:bold;">MEPI</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">100% OR COTTON 2/40</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">ECRU</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; text-align:right;">34.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;"></td>
               </tr>
             `}
             <tr class="total-row">
@@ -557,7 +559,7 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
 exports.generateMonthlyWagesPdf = async (req, res) => {
   let browser = null;
   try {
-    const { section_id, style_id, startDate, endDate } = req.query;
+    const { section_id, style_id, startDate, endDate, search, card_no } = req.query;
 
     const companyProfile = await prisma.companyProfile.findFirst();
     const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
@@ -572,6 +574,25 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
       if (endDate) where.production_date.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
+    const cardFilter = search || card_no;
+    if (cardFilter && cardFilter !== 'All') {
+      const q = cardFilter.trim();
+      const matchedEmps = await prisma.employee.findMany({
+        where: {
+          OR: [
+            { card_no: { contains: q } },
+            { name: { contains: q } }
+          ]
+        }
+      });
+      const ids = matchedEmps.map(e => e.id);
+      const asInt = parseInt(q);
+      if (!isNaN(asInt) && !ids.includes(asInt)) {
+        ids.push(asInt);
+      }
+      where.card_no = { in: ids };
+    }
+
     const list = await prisma.production.findMany({
       where,
       include: {
@@ -583,20 +604,56 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
       orderBy: { id: 'desc' }
     });
 
-    const pieceRates = await prisma.pieceRate.findMany();
+    // Determine target month from date filter (startDate or endDate or first record's date)
+    const filterDate = startDate
+      ? new Date(startDate)
+      : (endDate ? new Date(endDate) : (list[0]?.production_date ? new Date(list[0].production_date) : new Date()));
+    const targetYear = filterDate.getFullYear();
+    const targetMonth = filterDate.getMonth();
+
+    const startOfTargetMonth = new Date(Date.UTC(targetYear, targetMonth, 1, 0, 0, 0, 0));
+    const endOfTargetMonth = new Date(Date.UTC(targetYear, targetMonth + 1, 0, 23, 59, 59, 999));
+
+    // Fetch piece rates for the target month according to the date filter
+    const pieceRates = await prisma.pieceRate.findMany({
+      where: {
+        effective_date: {
+          gte: startOfTargetMonth,
+          lte: endOfTargetMonth
+        }
+      },
+      orderBy: [
+        { effective_date: 'desc' },
+        { id: 'desc' }
+      ]
+    });
 
     const firstRecord = list[0] || {};
-    let empCardNo = 'BH10040';
-    let empName = 'Mst. Selina Parvin';
+    let empCardNo = '10001';
+    let empName = 'Worker';
 
-    if (firstRecord.card_no) {
+    if (cardFilter && cardFilter !== 'All') {
+      const q = cardFilter.trim();
+      const emp = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { card_no: q },
+            { id: !isNaN(parseInt(q)) ? parseInt(q) : undefined }
+          ]
+        }
+      });
+      if (emp) {
+        empCardNo = emp.card_no;
+        if (emp.name) empName = emp.name;
+      }
+    } else if (firstRecord.card_no) {
       let emp = null;
       const parsedId = parseInt(firstRecord.card_no);
       if (!isNaN(parsedId)) {
         emp = await prisma.employee.findUnique({ where: { id: parsedId } });
       }
       if (!emp) {
-        emp = await prisma.employee.findFirst({ where: { card_no: firstRecord.card_no } });
+        emp = await prisma.employee.findFirst({ where: { card_no: String(firstRecord.card_no) } });
       }
       if (emp) {
         empCardNo = emp.card_no;
@@ -605,8 +662,16 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
         empCardNo = firstRecord.card_no;
       }
     }
-    const sectionName = firstRecord.section?.name || 'Auto Winding';
-    const monthStr = startDate ? new Date(startDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : 'July 2026';
+
+    let sectionName = 'Auto Winding';
+    if (section_id && section_id !== 'All') {
+      const targetSec = await prisma.section.findUnique({ where: { id: parseInt(section_id) } });
+      if (targetSec) sectionName = targetSec.name;
+    } else if (firstRecord.section?.name) {
+      sectionName = firstRecord.section.name;
+    }
+
+    const monthStr = filterDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
     let totalPcs = 0;
     let totalAmount = 0;
@@ -616,13 +681,16 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
 
     list.forEach(item => {
       const key = `${item.style_id}-${item.process_id}-${item.color_id}`;
+      // Find piece rate in the filtered month; if none found, default to 0
       const pr = pieceRates.find(r =>
         r.section_id === item.section_id &&
         r.style_id === item.style_id &&
         r.process_id === item.process_id &&
         r.color_id === item.color_id
       );
-      const rate = pr ? Number(pr.rate) : 1.25;
+      const rate = (pr && pr.rate !== null && pr.rate !== undefined && !isNaN(Number(pr.rate)))
+        ? Number(pr.rate)
+        : 0.00;
 
       if (!groupedWagesMap.has(key)) {
         groupedWagesMap.set(key, {
@@ -647,12 +715,12 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
 
       return `
         <tr>
-          <td style="border: 1px solid #000; padding: 4px 6px; font-weight: bold; font-size: 8pt;">${item.styleNo}</td>
-          <td style="border: 1px solid #000; padding: 4px 6px; font-size: 8pt;">${item.processName}</td>
-          <td style="border: 1px solid #000; padding: 4px 6px; font-size: 8pt;">${item.colorName}</td>
-          <td style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-size: 8pt;">${item.totalPcs.toFixed(2)}</td>
-          <td style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-size: 8pt;">${item.rate.toFixed(2)}</td>
-          <td style="border: 1px solid #000; padding: 4px 6px; text-align: right; font-size: 8pt; font-weight: bold;">${amount.toFixed(2)}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; font-weight: bold; font-size: 7pt; line-height: 1.2;">${item.styleNo}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; font-size: 7pt; line-height: 1.2;">${item.processName}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; font-size: 7pt; line-height: 1.2;">${item.colorName}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${item.totalPcs.toFixed(2)}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${item.rate.toFixed(2)}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; font-weight: bold; line-height: 1.2;">${amount.toFixed(2)}</td>
         </tr>
       `;
     }).join('');
@@ -734,15 +802,17 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
           }
           table.data-table th {
             border: 1.5px solid #000;
-            padding: 5px 6px;
-            font-size: 8pt;
+            padding: 4px 5px;
+            font-size: 7.5pt;
             font-weight: bold;
             text-transform: uppercase;
             background-color: #fff;
           }
           table.data-table td {
             border: 1px solid #000;
-            padding: 4px 6px;
+            padding: 3px 5px;
+            font-size: 7pt;
+            line-height: 1.2;
           }
           .total-row td {
             border: 1.5px solid #000;
@@ -817,46 +887,46 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width: 20%; text-align: left;">STYLE</th>
+              <th style="width: 27%; text-align: left;">STYLE</th>
               <th style="width: 28%; text-align: left;">TYPE</th>
               <th style="width: 20%; text-align: left;">COLOR</th>
-              <th style="width: 12%; text-align: right;">NO. OF PCS</th>
-              <th style="width: 10%; text-align: right;">RATE</th>
+              <th style="width: 8%; text-align: right;">NO. OF PCS</th>
+              <th style="width: 7%; text-align: right;">RATE</th>
               <th style="width: 10%; text-align: right;">AMOUNT</th>
             </tr>
           </thead>
           <tbody>
             ${rowsHtml.length > 0 ? rowsHtml : `
               <tr>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">BLACK</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">1.25</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">42.50</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-weight:bold; font-size:7pt; line-height:1.2;">MEPI</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">100% OR COTTON 2/40</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">BLACK</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">34.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">0.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-weight:bold; font-size:7pt; line-height:1.2;">0.00</td>
               </tr>
               <tr>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">BROWN ICE</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">1.25</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">42.50</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-weight:bold; font-size:7pt; line-height:1.2;">MEPI</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">100% OR COTTON 2/40</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">BROWN ICE</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">34.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">0.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-weight:bold; font-size:7pt; line-height:1.2;">0.00</td>
               </tr>
               <tr>
-                <td style="border:1px solid #000; padding:4px; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:4px;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:4px;">ECRU</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right;">1.25</td>
-                <td style="border:1px solid #000; padding:4px; text-align:right; font-weight:bold;">42.50</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-weight:bold; font-size:7pt; line-height:1.2;">MEPI</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">100% OR COTTON 2/40</td>
+                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">ECRU</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">34.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">0.00</td>
+                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-weight:bold; font-size:7pt; line-height:1.2;">0.00</td>
               </tr>
             `}
             <tr class="total-row">
               <td colSpan="3" style="text-align: right; border-right: none; padding: 4px;">Total :</td>
-              <td style="text-align: right; border-left: none; border-right: none; padding: 4px;">${totalPcs > 0 ? totalPcs.toFixed(2) : '102.00'} lbs</td>
+              <td style="text-align: right; border-left: none; border-right: none; padding: 4px;">${totalPcs > 0 ? totalPcs.toFixed(2) : (rowsHtml.length > 0 ? '0.00' : '102.00')} lbs</td>
               <td style="border-left: none; border-right: none;"></td>
-              <td style="text-align: right; border-left: none; padding: 4px;">${totalAmount > 0 ? totalAmount.toFixed(2) : '127.50'}</td>
+              <td style="text-align: right; border-left: none; padding: 4px;">${totalPcs > 0 ? totalAmount.toFixed(2) : '0.00'}</td>
             </tr>
           </tbody>
         </table>
@@ -864,7 +934,7 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
         <table class="summary-calc-table">
           <tr>
             <td style="width: 15%;">PROD. WAGE</td>
-            <td style="width: 18%; text-align: center;">${totalAmount > 0 ? totalAmount.toFixed(0) : '128'}</td>
+            <td style="width: 18%; text-align: center;">${totalPcs > 0 ? totalAmount.toFixed(0) : '0'}</td>
             <td style="width: 17%;">ATTN. BONUS</td>
             <td style="width: 17%;"></td>
             <td style="width: 16%;">PRODN. BONUS</td>
@@ -1380,11 +1450,11 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
 
     const rowsHtml = rateList.map((item, index) => `
       <tr>
-        <td style="border: 1px solid #000; padding: 5px 8px; text-align: center; font-size: 8.5pt;">${index + 1}</td>
-        <td style="border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 8.5pt; font-weight: bold;">${item.styleNo}</td>
-        <td style="border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 8.5pt;">${item.processName}</td>
-        <td style="border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 8.5pt;">${item.colorName}</td>
-        <td style="border: 1px solid #000; padding: 5px 8px; text-align: right; font-size: 8.5pt; font-weight: bold; ${item.rate === 0 ? 'color: #dc2626;' : ''}">${item.rate.toFixed(2)}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: center; font-size: 7pt; line-height: 1.2;">${index + 1}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; font-weight: bold; line-height: 1.2;">${item.styleNo}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${item.processName}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${item.colorName}</td>
+        <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; font-weight: bold; line-height: 1.2; ${item.rate === 0 ? 'color: #dc2626;' : ''}">${item.rate.toFixed(2)}</td>
       </tr>
     `).join('');
 
@@ -1445,15 +1515,17 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
           }
           table.data-table th {
             border: 1.5px solid #000;
-            padding: 6px 8px;
-            font-size: 8.5pt;
+            padding: 4px 5px;
+            font-size: 7.5pt;
             font-weight: bold;
             text-transform: uppercase;
             background-color: #fff;
           }
           table.data-table td {
             border: 1px solid #000;
-            padding: 5px 8px;
+            padding: 3px 5px;
+            font-size: 7pt;
+            line-height: 1.2;
           }
           .footer-signs {
             margin-top: 80px;
@@ -1496,9 +1568,9 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
         <table class="data-table">
           <thead>
             <tr>
-              <th style="width: 8%; text-align: center;">SL</th>
-              <th style="width: 25%; text-align: left;">STYLE NO</th>
-              <th style="width: 35%; text-align: left;">PROCESS / TYPE</th>
+              <th style="width: 6%; text-align: center;">SL</th>
+              <th style="width: 28%; text-align: left;">STYLE NO</th>
+              <th style="width: 34%; text-align: left;">PROCESS / TYPE</th>
               <th style="width: 20%; text-align: left;">COLOR</th>
               <th style="width: 12%; text-align: right;">RATE (TK)</th>
             </tr>
