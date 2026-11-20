@@ -453,7 +453,7 @@ export default function PieceRate({ token }) {
   const styleOptions = styles?.map((st) => ({
     id: st.id,
     label: st.style_no,
-    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+    sublabel: ''
   })) || [];
 
   // Section + Style wise process load

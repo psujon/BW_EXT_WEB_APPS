@@ -339,7 +339,7 @@ export default function Process({ token }) {
   const styleOptions = styles?.map((st) => ({
     id: st.id,
     label: st.style_no,
-    sublabel: st.buyer_name ? `(${st.buyer_name})` : ''
+    sublabel: ''
   })) || [];
 
   const buyerOptions = buyers?.map((b) => ({

@@ -1,5 +1,97 @@
-const puppeteer = require('puppeteer');
 const { prisma } = require('../db');
+
+// Safe optional require of puppeteer
+let puppeteer = null;
+try {
+  puppeteer = require('puppeteer');
+} catch (e) {
+  console.warn('[Report] Puppeteer is not installed in node_modules, using direct browser HTML rendering mode.');
+}
+
+/**
+ * Send styled HTML directly to browser with a non-printable floating toolbar for printing/saving as PDF.
+ */
+const sendPrintableHtml = (res, htmlContent) => {
+  let printableHtml = htmlContent;
+
+  const toolbarHtml = `
+    <div class="no-print" style="position: fixed; top: 12px; right: 20px; z-index: 99999; display: flex; gap: 8px; background: rgba(15, 23, 42, 0.90); padding: 8px 14px; border-radius: 12px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <button onclick="window.print()" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(2,132,199,0.4);">
+        🖨️ প্রিন্ট / PDF সংরক্ষণ করুন (Print / Save PDF)
+      </button>
+      <button onclick="window.close()" style="background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15); padding: 7px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+        ✕ বন্ধ করুন
+      </button>
+    </div>
+  `;
+
+  if (printableHtml.includes('<body')) {
+    printableHtml = printableHtml.replace(/<body[^>]*>/, `$&${toolbarHtml}`);
+  }
+
+  const printCss = `
+    @media print {
+      .no-print { display: none !important; }
+      @page { margin: 10mm; }
+      body { margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+  `;
+
+  if (printableHtml.includes('</style>')) {
+    printableHtml = printableHtml.replace('</style>', `${printCss}</style>`);
+  } else if (printableHtml.includes('</head>')) {
+    printableHtml = printableHtml.replace('</head>', `<style>${printCss}</style></head>`);
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(printableHtml);
+};
+
+/**
+ * Universal PDF or HTML fallback runner:
+ * 1. Checks if view=html is requested or puppeteer is unavailable -> renders HTML directly.
+ * 2. Attempts puppeteer PDF generation.
+ * 3. If puppeteer fails (missing Chrome, sandbox issue, OS limitation) -> automatically falls back to HTML without throwing 500 error!
+ */
+const renderPdfOrHtmlFallback = async (req, res, htmlContent, filename = 'report.pdf', pdfOptions = {}) => {
+  if (req.query.view === 'html' || req.query.format === 'html' || !puppeteer) {
+    return sendPrintableHtml(res, htmlContent);
+  }
+
+  let browser = null;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+    const uint8Pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' },
+      ...pdfOptions
+    });
+
+    await browser.close();
+    browser = null;
+
+    const pdfBuffer = Buffer.from(uint8Pdf);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    return res.end(pdfBuffer);
+
+  } catch (err) {
+    if (browser) {
+      try { await browser.close(); } catch (_) {}
+    }
+    console.warn(`[Report Fallback] Puppeteer PDF rendering failed (${err.message}). Automatically rendering HTML report in browser...`);
+    return sendPrintableHtml(res, htmlContent);
+  }
+};
 
 // 1. Employee List Report Data (JSON)
 exports.getEmployeeReport = async (req, res) => {
@@ -199,31 +291,11 @@ exports.generateEmployeePdf = async (req, res) => {
       </html>
     `;
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-    const uint8Pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
+    return await renderPdfOrHtmlFallback(req, res, htmlContent, `${reportTitle.replace(/ /g, '_')}.pdf`, {
       margin: { top: '12mm', right: '10mm', bottom: '12mm', left: '10mm' }
     });
-
-    await browser.close();
-
-    const pdfBuffer = Buffer.from(uint8Pdf);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', pdfBuffer.length);
-    res.setHeader('Content-Disposition', `inline; filename="${reportTitle.replace(/ /g, '_')}.pdf"`);
-    res.end(pdfBuffer);
   } catch (err) {
-    if (browser) await browser.close();
-    console.error('Puppeteer PDF generation error:', err);
+    console.error('Employee PDF generation error:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -526,31 +598,11 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
       </html>
     `;
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-    const uint8Pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
+    return await renderPdfOrHtmlFallback(req, res, htmlContent, 'MONTHLY_PRODUCTION_SHEET.pdf', {
       margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' }
     });
-
-    await browser.close();
-
-    const pdfBuffer = Buffer.from(uint8Pdf);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', pdfBuffer.length);
-    res.setHeader('Content-Disposition', `inline; filename="MONTHLY_PRODUCTION_SHEET.pdf"`);
-    res.end(pdfBuffer);
   } catch (err) {
-    if (browser) await browser.close();
-    console.error('Puppeteer Monthly Production PDF error:', err);
+    console.error('Monthly Production Sheet error:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -963,31 +1015,11 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
       </html>
     `;
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-    const uint8Pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
+    return await renderPdfOrHtmlFallback(req, res, htmlContent, 'MONTHLY_PRODUCTION_WAGES_SHEET.pdf', {
       margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' }
     });
-
-    await browser.close();
-
-    const pdfBuffer = Buffer.from(uint8Pdf);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', pdfBuffer.length);
-    res.setHeader('Content-Disposition', `inline; filename="MONTHLY_PRODUCTION_WAGES_SHEET.pdf"`);
-    res.end(pdfBuffer);
   } catch (err) {
-    if (browser) await browser.close();
-    console.error('Puppeteer Monthly Wages PDF error:', err);
+    console.error('Monthly Wages Sheet error:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -1338,32 +1370,12 @@ exports.generateMonthlyProductionStatementPdf = async (req, res) => {
       </html>
     `;
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-    const uint8Pdf = await page.pdf({
-      format: 'A4',
+    return await renderPdfOrHtmlFallback(req, res, htmlContent, 'MONTHLY_PRODUCTION_STATEMENT.pdf', {
       landscape: true,
-      printBackground: true,
       margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
     });
-
-    await browser.close();
-
-    const pdfBuffer = Buffer.from(uint8Pdf);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', pdfBuffer.length);
-    res.setHeader('Content-Disposition', `inline; filename="MONTHLY_PRODUCTION_STATEMENT.pdf"`);
-    res.end(pdfBuffer);
   } catch (err) {
-    if (browser) await browser.close();
-    console.error('Puppeteer Monthly Production Statement PDF error:', err);
+    console.error('Monthly Production Statement error:', err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -1596,31 +1608,11 @@ exports.generateMonthlyRateSheetPdf = async (req, res) => {
       </html>
     `;
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-    const uint8Pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
+    return await renderPdfOrHtmlFallback(req, res, htmlContent, 'SECTION_PIECE_RATE_SHEET.pdf', {
       margin: { top: '12mm', right: '10mm', bottom: '12mm', left: '10mm' }
     });
-
-    await browser.close();
-
-    const pdfBuffer = Buffer.from(uint8Pdf);
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', pdfBuffer.length);
-    res.setHeader('Content-Disposition', `inline; filename="SECTION_PIECE_RATE_SHEET.pdf"`);
-    res.end(pdfBuffer);
   } catch (err) {
-    if (browser) await browser.close();
-    console.error('Puppeteer Piece Rate Sheet PDF error:', err);
+    console.error('Piece Rate Sheet error:', err);
     res.status(500).json({ message: err.message });
   }
 };
