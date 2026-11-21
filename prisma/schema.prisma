@@ -50,7 +50,7 @@ model Production {
   color_id        Int
   production_date DateTime  @db.Date
   card_no         Int
-  quantity        Int
+  quantity        Decimal   @db.Decimal(12, 2)
   processed_by    Int?
   processed_date  DateTime? @default(now())
   section         Section   @relation(fields: [section_id], references: [id], onDelete: Cascade)

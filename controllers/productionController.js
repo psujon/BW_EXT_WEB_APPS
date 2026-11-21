@@ -170,7 +170,7 @@ exports.create = async (req, res) => {
 
     if (Array.isArray(items) && items.length > 0) {
       // Batch creation for multiple card entries
-      const validItems = items.filter(item => (item.card_no || item.employee_id) && parseInt(item.quantity) > 0);
+      const validItems = items.filter(item => (item.card_no || item.employee_id) && parseFloat(item.quantity) > 0);
 
       if (validItems.length === 0) {
         return res.status(400).json({ message: 'কমপক্ষে ১ টি বৈধ কার্ড নম্বর ও কোয়ান্টিটি প্রয়োজন!' });
@@ -191,7 +191,7 @@ exports.create = async (req, res) => {
           color_id: parseInt(color_id),
           production_date: pDate,
           card_no: formatCardNoForPrisma(empId),
-          quantity: parseInt(item.quantity),
+          quantity: parseFloat(item.quantity),
           processed_by: userId,
           processed_date: new Date()
         });
@@ -232,7 +232,7 @@ exports.create = async (req, res) => {
         color_id: parseInt(color_id),
         production_date: pDate,
         card_no: formatCardNoForPrisma(empId),
-        quantity: parseInt(quantity),
+        quantity: parseFloat(quantity),
         processed_by: userId,
         processed_date: new Date()
       };
@@ -268,7 +268,7 @@ exports.updateQuantity = async (req, res) => {
   const { quantity } = req.body;
   const userId = req.user ? req.user.id : null;
 
-  if (quantity === undefined || isNaN(parseInt(quantity)) || parseInt(quantity) < 0) {
+  if (quantity === undefined || isNaN(parseFloat(quantity)) || parseFloat(quantity) < 0) {
     return res.status(400).json({ message: 'সঠিক প্রোডাকশন কোয়ান্টিটি প্রদান করুন!' });
   }
 
@@ -276,7 +276,7 @@ exports.updateQuantity = async (req, res) => {
     const updated = await prisma.production.update({
       where: { id: parseInt(id) },
       data: {
-        quantity: parseInt(quantity),
+        quantity: parseFloat(quantity),
         processed_by: userId,
         processed_date: new Date()
       }

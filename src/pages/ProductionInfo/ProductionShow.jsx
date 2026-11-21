@@ -256,7 +256,7 @@ export default function ProductionShow({ token }) {
 
   // Save Updated Quantity
   const handleSaveQuantity = (id) => {
-    if (!editQty || isNaN(editQty) || parseInt(editQty) < 0) {
+    if (!editQty || isNaN(editQty) || parseFloat(editQty) < 0) {
       toast.error('সঠিক প্রোডাকশন কোয়ান্টিটি ইনপুট দিন!');
       return;
     }
@@ -269,7 +269,7 @@ export default function ProductionShow({ token }) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ quantity: parseInt(editQty) })
+      body: JSON.stringify({ quantity: parseFloat(editQty) })
     })
       .then(async res => {
         const data = await res.json();
@@ -518,7 +518,7 @@ export default function ProductionShow({ token }) {
             প্রাপ্ত মোট রেকর্ড: <strong className="text-sky-400 font-bold">{productionList.length}</strong> টি
           </div>
           <div>
-            মোট উৎপাদন পরিমাণ: <strong className="text-emerald-400 font-bold">{totalQuantity.toLocaleString()} pcs</strong>
+            মোট উৎপাদন পরিমাণ: <strong className="text-emerald-400 font-bold">{totalQuantity.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} pcs</strong>
           </div>
         </div>
       </form>
@@ -583,6 +583,8 @@ export default function ProductionShow({ token }) {
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
+                            step="any"
+                            min="0"
                             className="w-24 bg-[#0b0f19] border border-sky-500 rounded py-1 px-2 text-emerald-400 font-bold text-sm focus:outline-none"
                             value={editQty}
                             onChange={(e) => setEditQty(e.target.value)}
@@ -606,7 +608,7 @@ export default function ProductionShow({ token }) {
                         </div>
                       ) : (
                         <strong className="text-emerald-400 font-bold">
-                          {Number(item.quantity || item.qty || 0).toLocaleString()} pcs
+                          {Number(item.quantity || item.qty || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} pcs
                         </strong>
                       )}
                     </td>

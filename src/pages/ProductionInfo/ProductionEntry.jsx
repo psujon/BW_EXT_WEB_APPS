@@ -315,7 +315,7 @@ export default function ProductionEntry({ token }) {
       return;
     }
 
-    const validCards = cards.filter(c => c.card_no.trim() !== '' && parseInt(c.quantity) > 0);
+    const validCards = cards.filter(c => c.card_no.trim() !== '' && parseFloat(c.quantity) > 0);
     if (validCards.length === 0) {
       toast.error('কমপক্ষে ১ টি বৈধ কার্ড নম্বর ও কোয়ান্টিটি ইনপুট দিন!');
       return;
@@ -341,7 +341,7 @@ export default function ProductionEntry({ token }) {
         return {
           employee_id: empId,
           card_no: empId ? String(empId) : c.card_no,
-          quantity: parseInt(c.quantity)
+          quantity: parseFloat(c.quantity)
         };
       })
     };
@@ -391,7 +391,7 @@ export default function ProductionEntry({ token }) {
     )
     : [];
 
-  const totalQuantity = cards.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0);
+  const totalQuantity = cards.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -560,6 +560,8 @@ export default function ProductionEntry({ token }) {
                 <div className="w-full md:flex-1">
                   <input
                     type="number"
+                    step="any"
+                    min="0"
                     disabled={!item.emp_name}
                     className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${item.emp_name
                       ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500'
@@ -613,7 +615,7 @@ export default function ProductionEntry({ token }) {
           <div className="pt-4 border-t border-white/6 flex items-center justify-between">
             <div className="text-sm text-slate-300">
               মোট রেকর্ড: <strong className="text-sky-400">{cards.length}</strong> টি কার্ড |
-              মোট কোয়ান্টিটি: <strong className="text-emerald-400">{totalQuantity.toLocaleString()}</strong> pcs
+              মোট কোয়ান্টিটি: <strong className="text-emerald-400">{Number(totalQuantity.toFixed(2)).toLocaleString()}</strong> pcs
             </div>
 
             <button

@@ -86,7 +86,7 @@ const renderPdfOrHtmlFallback = async (req, res, htmlContent, filename = 'report
 
   } catch (err) {
     if (browser) {
-      try { await browser.close(); } catch (_) {}
+      try { await browser.close(); } catch (_) { }
     }
     console.warn(`[Report Fallback] Puppeteer PDF rendering failed (${err.message}). Automatically rendering HTML report in browser...`);
     return sendPrintableHtml(res, htmlContent);
@@ -304,7 +304,7 @@ exports.generateEmployeePdf = async (req, res) => {
 exports.generateMonthlyProductionPdf = async (req, res) => {
   let browser = null;
   try {
-    const { section_id, style_id, startDate, endDate } = req.query;
+    const { section_id, style_id, startDate, endDate, search, card_no } = req.query;
 
     const companyProfile = await prisma.companyProfile.findFirst();
     const companyName = companyProfile?.company_name || 'Best Wool Sweaters Ltd. (Ext. & Warehouse)';
@@ -319,36 +319,51 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
       if (endDate) where.production_date.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
-    const list = await prisma.production.findMany({
-      where,
-      include: {
-        section: { select: { name: true } },
-        style: { select: { style_no: true, buyer: { select: { name: true } } } },
-        process: { select: { process_name: true } },
-        color: { select: { color_name: true } }
-      },
-      orderBy: { id: 'desc' }
-    });
+    const [list, allEmployees] = await Promise.all([
+      prisma.production.findMany({
+        where,
+        include: {
+          section: { select: { name: true } },
+          style: { select: { style_no: true, buyer: { select: { name: true } } } },
+          process: { select: { process_name: true } },
+          color: { select: { color_name: true } }
+        },
+        orderBy: [
+          { production_date: 'asc' },
+          { id: 'asc' }
+        ]
+      }),
+      prisma.employee.findMany()
+    ]);
 
-    const firstRecord = list[0] || {};
-    let empCardNo = 'BH10040';
-    let empName = 'Mst. Selina Parvin';
+    const empById = new Map(allEmployees.map(e => [e.id, e]));
+    const empByCard = new Map(allEmployees.map(e => [String(e.card_no).toLowerCase(), e]));
 
-    if (firstRecord.card_no) {
-      let emp = null;
-      const parsedId = parseInt(firstRecord.card_no);
-      if (!isNaN(parsedId)) {
-        emp = await prisma.employee.findUnique({ where: { id: parsedId } });
+    const resolveEmp = (cardNoVal) => {
+      let matched = null;
+      const parsedId = parseInt(cardNoVal);
+      if (!isNaN(parsedId) && empById.has(parsedId)) {
+        matched = empById.get(parsedId);
+      } else if (empByCard.has(String(cardNoVal).toLowerCase())) {
+        matched = empByCard.get(String(cardNoVal).toLowerCase());
       }
-      if (!emp) {
-        emp = await prisma.employee.findFirst({ where: { card_no: firstRecord.card_no } });
-      }
-      if (emp) {
-        empCardNo = emp.card_no;
-        if (emp.name) empName = emp.name;
-      } else {
-        empCardNo = firstRecord.card_no;
-      }
+      return {
+        empId: matched ? matched.id : parsedId,
+        cardNo: matched ? matched.card_no : String(cardNoVal || '—'),
+        name: matched ? (matched.name || 'Worker') : 'Worker'
+      };
+    };
+
+    const cardFilter = search || card_no;
+    let filteredList = list;
+    if (cardFilter && cardFilter !== 'All') {
+      const q = cardFilter.trim().toLowerCase();
+      filteredList = list.filter(item => {
+        const emp = resolveEmp(item.card_no);
+        return emp.cardNo.toLowerCase().includes(q) ||
+          String(emp.empId) === q ||
+          emp.name.toLowerCase().includes(q);
+      });
     }
 
     // Fetch target section name dynamically
@@ -356,43 +371,162 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
     if (section_id && section_id !== 'All') {
       const targetSec = await prisma.section.findUnique({ where: { id: parseInt(section_id) } });
       if (targetSec) sectionName = targetSec.name;
-    } else if (firstRecord.section?.name) {
-      sectionName = firstRecord.section.name;
+    } else if (list[0]?.section?.name) {
+      sectionName = list[0].section.name;
     }
 
-    const monthStr = startDate ? new Date(startDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : 'July 2026';
+    const filterDate = startDate
+      ? new Date(startDate)
+      : (endDate ? new Date(endDate) : (list[0]?.production_date ? new Date(list[0].production_date) : new Date()));
+    const monthStr = filterDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-    // Group production entries by (Style, Process, Color) to show each unique combination ONCE with total quantity
-    const groupedMap = new Map();
-
-    list.forEach(item => {
-      const key = `${item.style_id}-${item.process_id}-${item.color_id}`;
-      if (!groupedMap.has(key)) {
-        groupedMap.set(key, {
-          dateDay: item.production_date ? new Date(item.production_date).getDate() : '1',
-          styleNo: item.style?.style_no || 'MEPI',
-          processName: item.process?.process_name || '100% OR COTTON 2/40',
-          colorName: item.color?.color_name || 'BLACK',
-          totalQuantity: 0
+    // Group records by worker (Card No)
+    const workerMap = new Map();
+    filteredList.forEach(item => {
+      const emp = resolveEmp(item.card_no);
+      const workerKey = emp.empId ? `id_${emp.empId}` : `card_${emp.cardNo}`;
+      if (!workerMap.has(workerKey)) {
+        workerMap.set(workerKey, {
+          workerKey,
+          empCardNo: emp.cardNo,
+          empName: emp.name,
+          items: []
         });
       }
-      const existing = groupedMap.get(key);
-      existing.totalQuantity += Number(item.quantity) || 0;
+      workerMap.get(workerKey).items.push(item);
     });
 
-    const groupedList = Array.from(groupedMap.values());
-    const totalQty = groupedList.reduce((acc, curr) => acc + curr.totalQuantity, 0);
+    if (workerMap.size === 0) {
+      if (cardFilter && cardFilter !== 'All') {
+        const q = cardFilter.trim().toLowerCase();
+        const singleEmp = allEmployees.find(e =>
+          String(e.id) === q ||
+          e.card_no.toLowerCase() === q ||
+          e.card_no.toLowerCase().includes(q)
+        );
+        workerMap.set('single', {
+          workerKey: 'single',
+          empCardNo: singleEmp ? singleEmp.card_no : cardFilter,
+          empName: singleEmp ? (singleEmp.name || 'Worker') : 'Worker',
+          items: []
+        });
+      } else {
+        workerMap.set('empty', {
+          workerKey: 'empty',
+          empCardNo: '—',
+          empName: '—',
+          items: []
+        });
+      }
+    }
 
-    const rowsHtml = groupedList.map((grp) => `
-      <tr>
-        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.dateDay}</td>
-        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; font-weight: bold; line-height: 1.2;">${grp.styleNo}</td>
-        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.processName}</td>
-        <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.colorName}</td>
-        <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${grp.totalQuantity.toFixed(2)}</td>
-        <td style="border: 1px solid #000; padding: 3px 5px; text-align: center; font-size: 7pt;"></td>
-      </tr>
-    `).join('');
+    const workerList = Array.from(workerMap.values()).sort((a, b) =>
+      a.empCardNo.localeCompare(b.empCardNo, undefined, { numeric: true, sensitivity: 'base' })
+    );
+
+    const sheetsHtml = workerList.map((worker, pageIdx) => {
+      // Group this worker's production entries by (Style, Process, Color)
+      const groupedMap = new Map();
+      worker.items.forEach(item => {
+        const key = `${item.style_id}-${item.process_id}-${item.color_id}`;
+        if (!groupedMap.has(key)) {
+          groupedMap.set(key, {
+            dateDay: item.production_date ? new Date(item.production_date).getDate() : '1',
+            styleNo: item.style?.style_no || '—',
+            processName: item.process?.process_name || '—',
+            colorName: item.color?.color_name || '—',
+            totalQuantity: 0
+          });
+        }
+        const existing = groupedMap.get(key);
+        existing.totalQuantity += Number(item.quantity) || 0;
+      });
+
+      const groupedList = Array.from(groupedMap.values());
+      const totalQty = groupedList.reduce((acc, curr) => acc + curr.totalQuantity, 0);
+
+      const rowsHtml = groupedList.length > 0 ? groupedList.map(grp => `
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.dateDay}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; font-weight: bold; line-height: 1.2;">${grp.styleNo}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.processName}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: left; font-size: 7pt; line-height: 1.2;">${grp.colorName}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${grp.totalQuantity.toFixed(2)}</td>
+          <td style="border: 1px solid #000; padding: 3px 5px; text-align: center; font-size: 7pt;"></td>
+        </tr>
+      `).join('') : `
+        <tr>
+          <td colspan="6" style="border: 1px solid #000; padding: 12px; text-align: center; font-size: 8pt; color: #666;">
+            এই কার্ডের জন্য কোনো প্রোডাকশন রেকর্ড পাওয়া যায়নি
+          </td>
+        </tr>
+      `;
+
+      return `
+        <div class="sheet-page">
+          <div class="sheet-main">
+            <div class="header">
+              <div class="company-name">${companyName}</div>
+              <div class="company-address">${companyAddress}</div>
+              <div style="position: relative;">
+                <div class="sheet-title-box">PRODUCTION SHEET</div>
+                <div class="date-top-right">Date : ________</div>
+              </div>
+            </div>
+
+            <div class="double-divider"></div>
+
+            <table class="meta-table">
+              <tr>
+                <td style="width: 55%;"><span class="field-label">NAME :</span> <span class="field-value">${worker.empName}</span></td>
+                <td style="width: 45%;"><span class="field-label">MACHINE NO. :</span> <span class="field-value">___________</span></td>
+              </tr>
+              <tr>
+                <td><span class="field-label">SECTION :</span> <span class="field-value">${sectionName}</span></td>
+                <td><span class="field-label">CARDNO :</span> <span class="field-value">${worker.empCardNo}</span></td>
+              </tr>
+              <tr>
+                <td><span class="field-label">SUPERVISOR :</span> <span class="field-value">___________</span> &nbsp; <span class="field-label">BLOCK :</span> <span class="field-value" style="min-width:60px;">Nil</span></td>
+                <td><span class="field-label">MONTH :</span> <span class="field-value">${monthStr}</span></td>
+              </tr>
+            </table>
+
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 10%; text-align: left;">DATE OF ISSUE</th>
+                  <th style="width: 23%; text-align: left;">STYLE NO</th>
+                  <th style="width: 27%; text-align: left;">TYPE</th>
+                  <th style="width: 18%; text-align: left;">COLOR</th>
+                  <th style="width: 10%; text-align: right;">QTY</th>
+                  <th style="width: 12%; text-align: center;">REMARKS</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+                <tr class="total-row">
+                  <td colSpan="4" style="text-align: right; border-right: none; padding: 5px;">Total :</td>
+                  <td style="text-align: right; border-left: none; padding: 5px;">${totalQty.toFixed(2)} lbs</td>
+                  <td style="border-left: none;"></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="worker-sign-box">
+              <div class="worker-sign">Worker Signature</div>
+            </div>
+          </div>
+
+          <div class="footer-wrapper">
+            <div class="footer-signs">
+              <div class="sign-line">Supervisor</div>
+              <div class="page-num">Page ${pageIdx + 1} of ${workerList.length}</div>
+              <div class="sign-line">In-Charge</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('\n');
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -405,12 +539,99 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
             size: A4 portrait;
             margin: 12mm 12mm 12mm 12mm;
           }
+          * {
+            box-sizing: border-box;
+          }
           body {
             font-family: Arial, Helvetica, sans-serif;
             color: #000;
             background: #fff;
             margin: 0;
-            padding: 10px;
+            padding: 0;
+          }
+          .sheet-page {
+            page-break-after: always;
+            break-after: page;
+            clear: both;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 265mm;
+            padding: 0;
+          }
+          .sheet-page:last-child {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+          .sheet-main {
+            flex: 1 0 auto;
+          }
+          .footer-wrapper {
+            margin-top: auto;
+            padding-top: 15px;
+            clear: both;
+            width: 100%;
+          }
+          .worker-sign-box {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 60px;
+            margin-bottom: 15px;
+          }
+          .worker-sign {
+            text-align: center;
+            font-size: 9pt;
+            border-top: 1px solid #000;
+            width: 160px;
+            padding-top: 4px;
+          }
+          .footer-signs {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            font-size: 8.5pt;
+            padding-bottom: 2px;
+          }
+          .page-num {
+            font-size: 8.5pt;
+            padding-bottom: 4px;
+          }
+          .sign-line {
+            border-top: 1px solid #000;
+            width: 120px;
+            text-align: center;
+            padding-top: 4px;
+          }
+          @media screen {
+            body {
+              background: #f1f5f9;
+              padding: 20px;
+            }
+            .sheet-page {
+              background: #fff;
+              max-width: 210mm;
+              min-height: 297mm;
+              margin: 0 auto 30px auto;
+              padding: 25px 30px;
+              box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+              border-radius: 6px;
+            }
+          }
+          @media print {
+            body {
+              background: #fff;
+              padding: 0;
+            }
+            .sheet-page {
+              box-shadow: none;
+              border-radius: 0;
+              margin: 0;
+              padding: 0;
+              min-height: 265mm;
+            }
           }
           .header {
             text-align: center;
@@ -489,111 +710,10 @@ exports.generateMonthlyProductionPdf = async (req, res) => {
             font-weight: bold;
             font-size: 9pt;
           }
-          .worker-sign {
-            margin-top: 60px;
-            float: right;
-            text-align: center;
-            font-size: 9pt;
-            border-top: 1px solid #000;
-            width: 160px;
-            padding-top: 4px;
-          }
-          .footer-signs {
-            margin-top: 100px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            font-size: 8.5pt;
-            clear: both;
-          }
-          .sign-line {
-            border-top: 1px solid #000;
-            width: 120px;
-            text-align: center;
-            padding-top: 4px;
-          }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="company-name">${companyName}</div>
-          <div class="company-address">${companyAddress}</div>
-          <div style="position: relative;">
-            <div class="sheet-title-box">PRODUCTION SHEET</div>
-            <div class="date-top-right">Date : ________</div>
-          </div>
-        </div>
-
-        <div class="double-divider"></div>
-
-        <table class="meta-table">
-          <tr>
-            <td style="width: 55%;"><span class="field-label">NAME :</span> <span class="field-value">${empName}</span></td>
-            <td style="width: 45%;"><span class="field-label">MACHINE NO. :</span> <span class="field-value">___________</span></td>
-          </tr>
-          <tr>
-            <td><span class="field-label">SECTION :</span> <span class="field-value">${sectionName}</span></td>
-            <td><span class="field-label">CARDNO :</span> <span class="field-value">${empCardNo}</span></td>
-          </tr>
-          <tr>
-            <td><span class="field-label">SUPERVISOR :</span> <span class="field-value">___________</span> &nbsp; <span class="field-label">BLOCK :</span> <span class="field-value" style="min-width:60px;">Nil</span></td>
-            <td><span class="field-label">MONTH :</span> <span class="field-value">${monthStr}</span></td>
-          </tr>
-        </table>
-
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width: 10%; text-align: left;">DATE OF ISSUE</th>
-              <th style="width: 23%; text-align: left;">STYLE NO</th>
-              <th style="width: 27%; text-align: left;">TYPE</th>
-              <th style="width: 18%; text-align: left;">COLOR</th>
-              <th style="width: 10%; text-align: right;">QTY</th>
-              <th style="width: 12%; text-align: center;">REMARKS</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.length > 0 ? rowsHtml : `
-              <tr>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">1</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">BLACK</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;"></td>
-              </tr>
-              <tr>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">1</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">BROWN ICE</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;"></td>
-              </tr>
-              <tr>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">1</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; font-weight:bold;">MEPI</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;">ECRU</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt; text-align:right;">34.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size: 7pt;"></td>
-              </tr>
-            `}
-            <tr class="total-row">
-              <td colSpan="4" style="text-align: right; border-right: none; padding: 5px;">Total :</td>
-              <td style="text-align: right; border-left: none; padding: 5px;">${totalQty > 0 ? totalQty.toFixed(0) : '102'} lbs</td>
-              <td style="border-left: none;"></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="worker-sign">Worker Signature</div>
-
-        <div class="footer-signs">
-          <div class="sign-line">Supervisor</div>
-          <div>Page 1 of 1</div>
-          <div class="sign-line">In-Charge</div>
-        </div>
+        ${sheetsHtml}
       </body>
       </html>
     `;
@@ -626,35 +746,52 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
       if (endDate) where.production_date.lte = new Date(`${endDate}T23:59:59.999Z`);
     }
 
-    const cardFilter = search || card_no;
-    if (cardFilter && cardFilter !== 'All') {
-      const q = cardFilter.trim();
-      const matchedEmps = await prisma.employee.findMany({
-        where: {
-          OR: [
-            { card_no: { contains: q } },
-            { name: { contains: q } }
-          ]
-        }
-      });
-      const ids = matchedEmps.map(e => e.id);
-      const asInt = parseInt(q);
-      if (!isNaN(asInt) && !ids.includes(asInt)) {
-        ids.push(asInt);
-      }
-      where.card_no = { in: ids };
-    }
+    const [list, allEmployees] = await Promise.all([
+      prisma.production.findMany({
+        where,
+        include: {
+          section: { select: { name: true } },
+          style: { select: { style_no: true, buyer: { select: { name: true } } } },
+          process: { select: { process_name: true } },
+          color: { select: { color_name: true } }
+        },
+        orderBy: [
+          { production_date: 'asc' },
+          { id: 'asc' }
+        ]
+      }),
+      prisma.employee.findMany()
+    ]);
 
-    const list = await prisma.production.findMany({
-      where,
-      include: {
-        section: { select: { name: true } },
-        style: { select: { style_no: true, buyer: { select: { name: true } } } },
-        process: { select: { process_name: true } },
-        color: { select: { color_name: true } }
-      },
-      orderBy: { id: 'desc' }
-    });
+    const empById = new Map(allEmployees.map(e => [e.id, e]));
+    const empByCard = new Map(allEmployees.map(e => [String(e.card_no).toLowerCase(), e]));
+
+    const resolveEmp = (cardNoVal) => {
+      let matched = null;
+      const parsedId = parseInt(cardNoVal);
+      if (!isNaN(parsedId) && empById.has(parsedId)) {
+        matched = empById.get(parsedId);
+      } else if (empByCard.has(String(cardNoVal).toLowerCase())) {
+        matched = empByCard.get(String(cardNoVal).toLowerCase());
+      }
+      return {
+        empId: matched ? matched.id : parsedId,
+        cardNo: matched ? matched.card_no : String(cardNoVal || '—'),
+        name: matched ? (matched.name || 'Worker') : 'Worker'
+      };
+    };
+
+    const cardFilter = search || card_no;
+    let filteredList = list;
+    if (cardFilter && cardFilter !== 'All') {
+      const q = cardFilter.trim().toLowerCase();
+      filteredList = list.filter(item => {
+        const emp = resolveEmp(item.card_no);
+        return emp.cardNo.toLowerCase().includes(q) ||
+          String(emp.empId) === q ||
+          emp.name.toLowerCase().includes(q);
+      });
+    }
 
     // Determine target month from date filter (startDate or endDate or first record's date)
     const filterDate = startDate
@@ -680,102 +817,209 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
       ]
     });
 
-    const firstRecord = list[0] || {};
-    let empCardNo = '10001';
-    let empName = 'Worker';
-
-    if (cardFilter && cardFilter !== 'All') {
-      const q = cardFilter.trim();
-      const emp = await prisma.employee.findFirst({
-        where: {
-          OR: [
-            { card_no: q },
-            { id: !isNaN(parseInt(q)) ? parseInt(q) : undefined }
-          ]
-        }
-      });
-      if (emp) {
-        empCardNo = emp.card_no;
-        if (emp.name) empName = emp.name;
-      }
-    } else if (firstRecord.card_no) {
-      let emp = null;
-      const parsedId = parseInt(firstRecord.card_no);
-      if (!isNaN(parsedId)) {
-        emp = await prisma.employee.findUnique({ where: { id: parsedId } });
-      }
-      if (!emp) {
-        emp = await prisma.employee.findFirst({ where: { card_no: String(firstRecord.card_no) } });
-      }
-      if (emp) {
-        empCardNo = emp.card_no;
-        if (emp.name) empName = emp.name;
-      } else {
-        empCardNo = firstRecord.card_no;
-      }
-    }
-
     let sectionName = 'Auto Winding';
     if (section_id && section_id !== 'All') {
       const targetSec = await prisma.section.findUnique({ where: { id: parseInt(section_id) } });
       if (targetSec) sectionName = targetSec.name;
-    } else if (firstRecord.section?.name) {
-      sectionName = firstRecord.section.name;
+    } else if (list[0]?.section?.name) {
+      sectionName = list[0].section.name;
     }
 
     const monthStr = filterDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-    let totalPcs = 0;
-    let totalAmount = 0;
-
-    // Group production entries by (Style, Process, Color) to show each unique combination ONCE with total quantity and amount
-    const groupedWagesMap = new Map();
-
-    list.forEach(item => {
-      const key = `${item.style_id}-${item.process_id}-${item.color_id}`;
-      // Find piece rate in the filtered month; if none found, default to 0
-      const pr = pieceRates.find(r =>
-        r.section_id === item.section_id &&
-        r.style_id === item.style_id &&
-        r.process_id === item.process_id &&
-        r.color_id === item.color_id
-      );
-      const rate = (pr && pr.rate !== null && pr.rate !== undefined && !isNaN(Number(pr.rate)))
-        ? Number(pr.rate)
-        : 0.00;
-
-      if (!groupedWagesMap.has(key)) {
-        groupedWagesMap.set(key, {
-          styleNo: item.style?.style_no || 'MEPI',
-          processName: item.process?.process_name || '100% OR COTTON 2/40',
-          colorName: item.color?.color_name || 'BLACK',
-          rate: rate,
-          totalPcs: 0
+    // Group records by worker (Card No)
+    const workerMap = new Map();
+    filteredList.forEach(item => {
+      const emp = resolveEmp(item.card_no);
+      const workerKey = emp.empId ? `id_${emp.empId}` : `card_${emp.cardNo}`;
+      if (!workerMap.has(workerKey)) {
+        workerMap.set(workerKey, {
+          workerKey,
+          empCardNo: emp.cardNo,
+          empName: emp.name,
+          items: []
         });
       }
-
-      const existing = groupedWagesMap.get(key);
-      existing.totalPcs += Number(item.quantity) || 0;
+      workerMap.get(workerKey).items.push(item);
     });
 
-    const groupedWagesList = Array.from(groupedWagesMap.values());
+    if (workerMap.size === 0) {
+      if (cardFilter && cardFilter !== 'All') {
+        const q = cardFilter.trim().toLowerCase();
+        const singleEmp = allEmployees.find(e =>
+          String(e.id) === q ||
+          e.card_no.toLowerCase() === q ||
+          e.card_no.toLowerCase().includes(q)
+        );
+        workerMap.set('single', {
+          workerKey: 'single',
+          empCardNo: singleEmp ? singleEmp.card_no : cardFilter,
+          empName: singleEmp ? (singleEmp.name || 'Worker') : 'Worker',
+          items: []
+        });
+      } else {
+        workerMap.set('empty', {
+          workerKey: 'empty',
+          empCardNo: '—',
+          empName: '—',
+          items: []
+        });
+      }
+    }
 
-    const rowsHtml = groupedWagesList.map((item) => {
-      const amount = item.totalPcs * item.rate;
-      totalPcs += item.totalPcs;
-      totalAmount += amount;
+    const workerList = Array.from(workerMap.values()).sort((a, b) =>
+      a.empCardNo.localeCompare(b.empCardNo, undefined, { numeric: true, sensitivity: 'base' })
+    );
 
-      return `
+    const sheetsHtml = workerList.map((worker, pageIdx) => {
+      // Group this worker's production entries by (Style, Process, Color)
+      const groupedWagesMap = new Map();
+      let workerTotalPcs = 0;
+      let workerTotalAmount = 0;
+
+      worker.items.forEach(item => {
+        const key = `${item.style_id}-${item.process_id}-${item.color_id}`;
+        // Find piece rate in the filtered month; if none found, default to 0
+        const pr = pieceRates.find(r =>
+          r.section_id === item.section_id &&
+          r.style_id === item.style_id &&
+          r.process_id === item.process_id &&
+          r.color_id === item.color_id
+        );
+        const rate = (pr && pr.rate !== null && pr.rate !== undefined && !isNaN(Number(pr.rate)))
+          ? Number(pr.rate)
+          : 0.00;
+
+        if (!groupedWagesMap.has(key)) {
+          groupedWagesMap.set(key, {
+            styleNo: item.style?.style_no || '—',
+            processName: item.process?.process_name || '—',
+            colorName: item.color?.color_name || '—',
+            rate: rate,
+            totalPcs: 0
+          });
+        }
+
+        const existing = groupedWagesMap.get(key);
+        existing.totalPcs += Number(item.quantity) || 0;
+      });
+
+      const groupedWagesList = Array.from(groupedWagesMap.values());
+
+      const rowsHtml = groupedWagesList.length > 0 ? groupedWagesList.map((item) => {
+        const amount = item.totalPcs * item.rate;
+        workerTotalPcs += item.totalPcs;
+        workerTotalAmount += amount;
+
+        return `
+          <tr>
+            <td style="border: 1px solid #000; padding: 3px 5px; font-weight: bold; font-size: 7pt; line-height: 1.2;">${item.styleNo}</td>
+            <td style="border: 1px solid #000; padding: 3px 5px; font-size: 7pt; line-height: 1.2;">${item.processName}</td>
+            <td style="border: 1px solid #000; padding: 3px 5px; font-size: 7pt; line-height: 1.2;">${item.colorName}</td>
+            <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${item.totalPcs.toFixed(2)}</td>
+            <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${item.rate.toFixed(2)}</td>
+            <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; font-weight: bold; line-height: 1.2;">${amount.toFixed(2)}</td>
+          </tr>
+        `;
+      }).join('') : `
         <tr>
-          <td style="border: 1px solid #000; padding: 3px 5px; font-weight: bold; font-size: 7pt; line-height: 1.2;">${item.styleNo}</td>
-          <td style="border: 1px solid #000; padding: 3px 5px; font-size: 7pt; line-height: 1.2;">${item.processName}</td>
-          <td style="border: 1px solid #000; padding: 3px 5px; font-size: 7pt; line-height: 1.2;">${item.colorName}</td>
-          <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${item.totalPcs.toFixed(2)}</td>
-          <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; line-height: 1.2;">${item.rate.toFixed(2)}</td>
-          <td style="border: 1px solid #000; padding: 3px 5px; text-align: right; font-size: 7pt; font-weight: bold; line-height: 1.2;">${amount.toFixed(2)}</td>
+          <td colspan="6" style="border: 1px solid #000; padding: 12px; text-align: center; font-size: 8pt; color: #666;">
+            এই কার্ডের জন্য কোনো প্রোডাকশন রেকর্ড পাওয়া যায়নি
+          </td>
         </tr>
       `;
-    }).join('');
+
+      return `
+        <div class="sheet-page">
+          <div class="sheet-main">
+            <div class="header">
+              <div class="company-name">${companyName}</div>
+              <div class="company-address">${companyAddress}</div>
+              <div style="position: relative;">
+                <div class="sheet-title-box">PRODUCTION WAGES SHEET</div>
+                <div class="date-top-right">Date : ________</div>
+              </div>
+            </div>
+
+            <div class="double-divider"></div>
+
+            <table class="meta-table">
+              <tr>
+                <td style="width: 50%;"><span class="field-label">CARD NO. :</span> <span class="field-value">${worker.empCardNo}</span></td>
+                <td style="width: 50%;"><span class="field-label">MACHINE NO. :</span> <span class="field-value">___________</span></td>
+              </tr>
+              <tr>
+                <td><span class="field-label">NAME :</span> <span class="field-value">${worker.empName}</span></td>
+                <td><span class="field-label">MONTH :</span> <span class="field-value">${monthStr}</span></td>
+              </tr>
+              <tr>
+                <td><span class="field-label">SECTION :</span> <span class="field-value">${sectionName}</span> &nbsp; <span class="field-label">Block :</span> <span class="field-value" style="min-width:40px;">Nil</span></td>
+                <td><span class="field-label">ATTENDANCE :</span> <span class="field-value">___________</span></td>
+              </tr>
+              <tr>
+                <td><span class="field-label">SUPERVISOR :</span> <span class="field-value">___________</span></td>
+                <td><span class="field-label">IN-CHARGE :</span> <span class="field-value">___________</span></td>
+              </tr>
+            </table>
+
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="width: 27%; text-align: left;">STYLE</th>
+                  <th style="width: 28%; text-align: left;">TYPE</th>
+                  <th style="width: 20%; text-align: left;">COLOR</th>
+                  <th style="width: 8%; text-align: right;">NO. OF PCS</th>
+                  <th style="width: 7%; text-align: right;">RATE</th>
+                  <th style="width: 10%; text-align: right;">AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+                <tr class="total-row">
+                  <td colSpan="3" style="text-align: right; border-right: none; padding: 4px;">Total :</td>
+                  <td style="text-align: right; border-left: none; border-right: none; padding: 4px;">${workerTotalPcs.toFixed(2)} lbs</td>
+                  <td style="border-left: none; border-right: none;"></td>
+                  <td style="text-align: right; border-left: none; padding: 4px;">${workerTotalAmount.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table class="summary-calc-table">
+              <tr>
+                <td style="width: 15%;">PROD. WAGE</td>
+                <td style="width: 18%; text-align: center;">${workerTotalAmount.toFixed(0)}</td>
+                <td style="width: 17%;">ATTN. BONUS</td>
+                <td style="width: 17%;"></td>
+                <td style="width: 16%;">PRODN. BONUS</td>
+                <td style="width: 17%;"></td>
+              </tr>
+              <tr>
+                <td>NO. WORK</td>
+                <td></td>
+                <td>MIN. WAGES ADJ.</td>
+                <td></td>
+                <td>GROSS PAY</td>
+                <td></td>
+              </tr>
+            </table>
+
+            <div class="worker-sign-box">
+              <div class="worker-sign">Worker Signature</div>
+            </div>
+          </div>
+
+          <div class="footer-wrapper">
+            <div class="footer-signs">
+              <div class="sign-line">Checked By</div>
+              <div class="sign-line">Prod. Manager</div>
+              <div class="page-num">Page ${pageIdx + 1} of ${workerList.length}</div>
+              <div class="sign-line">AC Signature</div>
+              <div class="sign-line">Authorized By</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('\n');
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -788,12 +1032,99 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
             size: A4 portrait;
             margin: 12mm 12mm 12mm 12mm;
           }
+          * {
+            box-sizing: border-box;
+          }
           body {
             font-family: Arial, Helvetica, sans-serif;
             color: #000;
             background: #fff;
             margin: 0;
-            padding: 10px;
+            padding: 0;
+          }
+          .sheet-page {
+            page-break-after: always;
+            break-after: page;
+            clear: both;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 265mm;
+            padding: 0;
+          }
+          .sheet-page:last-child {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+          .sheet-main {
+            flex: 1 0 auto;
+          }
+          .footer-wrapper {
+            margin-top: auto;
+            padding-top: 15px;
+            clear: both;
+            width: 100%;
+          }
+          .worker-sign-box {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 60px;
+            margin-bottom: 15px;
+          }
+          .worker-sign {
+            text-align: center;
+            font-size: 8.5pt;
+            border-top: 1px solid #000;
+            width: 150px;
+            padding-top: 4px;
+          }
+          .footer-signs {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            font-size: 8.5pt;
+            padding-bottom: 2px;
+          }
+          .page-num {
+            font-size: 8.5pt;
+            padding-bottom: 4px;
+          }
+          .sign-line {
+            border-top: 1px solid #000;
+            width: 105px;
+            text-align: center;
+            padding-top: 4px;
+          }
+          @media screen {
+            body {
+              background: #f1f5f9;
+              padding: 20px;
+            }
+            .sheet-page {
+              background: #fff;
+              max-width: 210mm;
+              min-height: 297mm;
+              margin: 0 auto 30px auto;
+              padding: 25px 30px;
+              box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+              border-radius: 6px;
+            }
+          }
+          @media print {
+            body {
+              background: #fff;
+              padding: 0;
+            }
+            .sheet-page {
+              box-shadow: none;
+              border-radius: 0;
+              margin: 0;
+              padding: 0;
+              min-height: 265mm;
+            }
           }
           .header {
             text-align: center;
@@ -882,135 +1213,10 @@ exports.generateMonthlyWagesPdf = async (req, res) => {
             border: 1.5px solid #000;
             padding: 4px 6px;
           }
-          .worker-sign {
-            margin-top: 40px;
-            border-top: 1px solid #000;
-            width: 150px;
-            text-align: center;
-            font-size: 8.5pt;
-            padding-top: 4px;
-          }
-          .footer-signs {
-            margin-top: 90px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            font-size: 8.5pt;
-          }
-          .sign-line {
-            border-top: 1px solid #000;
-            width: 110px;
-            text-align: center;
-            padding-top: 4px;
-          }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div class="company-name">${companyName}</div>
-          <div class="company-address">${companyAddress}</div>
-          <div style="position: relative;">
-            <div class="sheet-title-box">PRODUCTION WAGES SHEET</div>
-            <div class="date-top-right">Date : ________</div>
-          </div>
-        </div>
-
-        <div class="double-divider"></div>
-
-        <table class="meta-table">
-          <tr>
-            <td style="width: 50%;"><span class="field-label">CARD NO. :</span> <span class="field-value">${empCardNo}</span></td>
-            <td style="width: 50%;"><span class="field-label">MACHINE NO. :</span> <span class="field-value">___________</span></td>
-          </tr>
-          <tr>
-            <td><span class="field-label">NAME :</span> <span class="field-value">${empName}</span></td>
-            <td><span class="field-label">MONTH :</span> <span class="field-value">${monthStr}</span></td>
-          </tr>
-          <tr>
-            <td><span class="field-label">SECTION :</span> <span class="field-value">${sectionName}</span> &nbsp; <span class="field-label">Block :</span> <span class="field-value" style="min-width:40px;">Nil</span></td>
-            <td><span class="field-label">ATTENDANCE :</span> <span class="field-value">___________</span></td>
-          </tr>
-          <tr>
-            <td><span class="field-label">SUPERVISOR :</span> <span class="field-value">___________</span></td>
-            <td><span class="field-label">IN-CHARGE :</span> <span class="field-value">___________</span></td>
-          </tr>
-        </table>
-
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width: 27%; text-align: left;">STYLE</th>
-              <th style="width: 28%; text-align: left;">TYPE</th>
-              <th style="width: 20%; text-align: left;">COLOR</th>
-              <th style="width: 8%; text-align: right;">NO. OF PCS</th>
-              <th style="width: 7%; text-align: right;">RATE</th>
-              <th style="width: 10%; text-align: right;">AMOUNT</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.length > 0 ? rowsHtml : `
-              <tr>
-                <td style="border:1px solid #000; padding:3px 5px; font-weight:bold; font-size:7pt; line-height:1.2;">MEPI</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">BLACK</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">34.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">0.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-weight:bold; font-size:7pt; line-height:1.2;">0.00</td>
-              </tr>
-              <tr>
-                <td style="border:1px solid #000; padding:3px 5px; font-weight:bold; font-size:7pt; line-height:1.2;">MEPI</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">BROWN ICE</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">34.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">0.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-weight:bold; font-size:7pt; line-height:1.2;">0.00</td>
-              </tr>
-              <tr>
-                <td style="border:1px solid #000; padding:3px 5px; font-weight:bold; font-size:7pt; line-height:1.2;">MEPI</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">100% OR COTTON 2/40</td>
-                <td style="border:1px solid #000; padding:3px 5px; font-size:7pt; line-height:1.2;">ECRU</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">34.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-size:7pt; line-height:1.2;">0.00</td>
-                <td style="border:1px solid #000; padding:3px 5px; text-align:right; font-weight:bold; font-size:7pt; line-height:1.2;">0.00</td>
-              </tr>
-            `}
-            <tr class="total-row">
-              <td colSpan="3" style="text-align: right; border-right: none; padding: 4px;">Total :</td>
-              <td style="text-align: right; border-left: none; border-right: none; padding: 4px;">${totalPcs > 0 ? totalPcs.toFixed(2) : (rowsHtml.length > 0 ? '0.00' : '102.00')} lbs</td>
-              <td style="border-left: none; border-right: none;"></td>
-              <td style="text-align: right; border-left: none; padding: 4px;">${totalPcs > 0 ? totalAmount.toFixed(2) : '0.00'}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table class="summary-calc-table">
-          <tr>
-            <td style="width: 15%;">PROD. WAGE</td>
-            <td style="width: 18%; text-align: center;">${totalPcs > 0 ? totalAmount.toFixed(0) : '0'}</td>
-            <td style="width: 17%;">ATTN. BONUS</td>
-            <td style="width: 17%;"></td>
-            <td style="width: 16%;">PRODN. BONUS</td>
-            <td style="width: 17%;"></td>
-          </tr>
-          <tr>
-            <td>NO. WORK</td>
-            <td></td>
-            <td>MIN. WAGES ADJ.</td>
-            <td></td>
-            <td>GROSS PAY</td>
-            <td></td>
-          </tr>
-        </table>
-
-        <div class="worker-sign">Worker Signature</div>
-
-        <div class="footer-signs">
-          <div class="sign-line">Checked By</div>
-          <div class="sign-line">Prod. Manager</div>
-          <div>Page 1 of 1</div>
-          <div class="sign-line">AC Signature</div>
-          <div class="sign-line">Authorized By</div>
-        </div>
+        ${sheetsHtml}
       </body>
       </html>
     `;
@@ -1642,7 +1848,7 @@ exports.getProductionReport = async (req, res) => {
       orderBy: { id: 'desc' }
     });
 
-    const totalQty = list.reduce((acc, curr) => acc + curr.quantity, 0);
+    const totalQty = list.reduce((acc, curr) => acc + (Number(curr.quantity) || 0), 0);
 
     res.json({
       summary: {
