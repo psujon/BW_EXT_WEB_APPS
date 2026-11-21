@@ -518,7 +518,7 @@ export default function ProductionShow({ token }) {
             প্রাপ্ত মোট রেকর্ড: <strong className="text-sky-400 font-bold">{productionList.length}</strong> টি
           </div>
           <div>
-            মোট উৎপাদন পরিমাণ: <strong className="text-emerald-400 font-bold">{totalQuantity.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} pcs</strong>
+            মোট উৎপাদন পরিমাণ: <strong className="text-emerald-400 font-bold">{totalQuantity.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} lbs</strong>
           </div>
         </div>
       </form>
@@ -608,7 +608,7 @@ export default function ProductionShow({ token }) {
                         </div>
                       ) : (
                         <strong className="text-emerald-400 font-bold">
-                          {Number(item.quantity || item.qty || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} pcs
+                          {Number(item.quantity || item.qty || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} lbs
                         </strong>
                       )}
                     </td>
