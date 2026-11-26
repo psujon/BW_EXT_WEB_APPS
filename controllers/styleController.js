@@ -2,8 +2,10 @@ const { prisma } = require('../db');
 
 exports.getAll = async (req, res) => {
   try {
-    const { search, limit } = req.query;
+    const { search, limit, buyer_id } = req.query;
     const where = {};
+
+    if (buyer_id) where.buyer_id = parseInt(buyer_id);
 
     if (search && search.trim() !== '') {
       const q = search.trim();
@@ -14,7 +16,7 @@ exports.getAll = async (req, res) => {
       ];
     }
 
-    const takeLimit = limit ? parseInt(limit) : (search ? undefined : 50);
+    const takeLimit = limit ? parseInt(limit) : undefined;
 
     const styles = await prisma.style.findMany({
       where,
