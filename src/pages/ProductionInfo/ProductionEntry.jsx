@@ -2,6 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Edit3, Plus, Trash2, Save, UserCheck, ChevronDown, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// Helper to parse positive numeric quantity (supporting Bengali digits and rejecting <= 0)
+const parsePositiveQty = (val) => {
+  if (val === null || val === undefined) return null;
+  const str = String(val).trim().replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+  if (str === '') return null;
+  const num = parseFloat(str);
+  if (isNaN(num) || num <= 0) return null;
+  return num;
+};
+
 function SearchableSelect({
   options = [],
   value,
@@ -315,9 +325,20 @@ export default function ProductionEntry({ token }) {
       return;
     }
 
-    const validCards = cards.filter(c => c.card_no.trim() !== '' && parseFloat(c.quantity) > 0);
+    // Check if any card has card_no but missing or <= 0 quantity
+    for (const c of cards) {
+      if (c.card_no.trim() !== '') {
+        const qty = parsePositiveQty(c.quantity);
+        if (!qty) {
+          toast.error(`কার্ড নম্বর "${c.card_no}" এর কোয়ান্টিটি ০ বা খালি রাখা যাবে না! দয়া করে ০ এর বেশি সঠিক কোয়ান্টিটি দিন।`);
+          return;
+        }
+      }
+    }
+
+    const validCards = cards.filter(c => c.card_no.trim() !== '' && parsePositiveQty(c.quantity) !== null);
     if (validCards.length === 0) {
-      toast.error('কমপক্ষে ১ টি বৈধ কার্ড নম্বর ও কোয়ান্টিটি ইনপুট দিন!');
+      toast.error('কমপক্ষে ১ টি কার্ড নম্বর ও ০ এর বেশি সঠিক কোয়ান্টিটি ইনপুট দিন!');
       return;
     }
 
@@ -341,7 +362,7 @@ export default function ProductionEntry({ token }) {
         return {
           employee_id: empId,
           card_no: empId ? String(empId) : c.card_no,
-          quantity: parseFloat(c.quantity)
+          quantity: parsePositiveQty(c.quantity)
         };
       })
     };
@@ -391,7 +412,7 @@ export default function ProductionEntry({ token }) {
     )
     : [];
 
-  const totalQuantity = cards.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+  const totalQuantity = cards.reduce((sum, item) => sum + (parsePositiveQty(item.quantity) || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -561,17 +582,24 @@ export default function ProductionEntry({ token }) {
                   <input
                     type="number"
                     step="any"
-                    min="0"
+                    min="0.01"
                     disabled={!item.emp_name}
-                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${item.emp_name
-                      ? 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500'
-                      : 'bg-[#0b0f19]/20 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+                    className={`w-full border rounded-lg py-2 px-3 text-sm focus:outline-none transition-colors ${!item.emp_name
+                      ? 'bg-[#0b0f19]/20 border-white/5 text-slate-600 cursor-not-allowed opacity-50'
+                      : item.quantity !== '' && !parsePositiveQty(item.quantity)
+                        ? 'bg-rose-500/10 border-rose-500/60 text-rose-300 focus:border-rose-500'
+                        : 'bg-[#0b0f19]/60 border-white/6 text-slate-100 focus:border-sky-500'
                       }`}
                     value={item.quantity}
                     onChange={(e) => handleCardFieldChange(item.id, 'quantity', e.target.value)}
-                    placeholder={item.emp_name ? "কোয়ান্টিটি (pcs)" : "কার্ড নং না থাকায় নিষ্ক্রিয়"}
+                    placeholder={item.emp_name ? "কোয়ান্টিটি (> 0 pcs)" : "কার্ড নং না থাকায় নিষ্ক্রিয়"}
                     required
                   />
+                  {item.emp_name && item.quantity !== '' && !parsePositiveQty(item.quantity) && (
+                    <p className="text-[11px] text-rose-400 mt-1 font-medium pl-1">
+                      ⚠️ কোয়ান্টিটি অবশ্যই ০ এর বেশি হতে হবে
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">

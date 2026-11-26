@@ -256,8 +256,10 @@ export default function ProductionShow({ token }) {
 
   // Save Updated Quantity
   const handleSaveQuantity = (id) => {
-    if (!editQty || isNaN(editQty) || parseFloat(editQty) < 0) {
-      toast.error('সঠিক প্রোডাকশন কোয়ান্টিটি ইনপুট দিন!');
+    const cleanQty = String(editQty).trim().replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+    const parsedQty = parseFloat(cleanQty);
+    if (!editQty || isNaN(parsedQty) || parsedQty <= 0) {
+      toast.error('প্রোডাকশন কোয়ান্টিটি অবশ্যই ০ (শূন্য) এর বেশি হতে হবে!');
       return;
     }
 
@@ -269,7 +271,7 @@ export default function ProductionShow({ token }) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ quantity: parseFloat(editQty) })
+      body: JSON.stringify({ quantity: parsedQty })
     })
       .then(async res => {
         const data = await res.json();
@@ -584,7 +586,7 @@ export default function ProductionShow({ token }) {
                           <input
                             type="number"
                             step="any"
-                            min="0"
+                            min="0.01"
                             className="w-24 bg-[#0b0f19] border border-sky-500 rounded py-1 px-2 text-emerald-400 font-bold text-sm focus:outline-none"
                             value={editQty}
                             onChange={(e) => setEditQty(e.target.value)}

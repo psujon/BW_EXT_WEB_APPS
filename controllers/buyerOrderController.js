@@ -16,7 +16,7 @@ exports.getAll = async (req, res) => {
       ];
     }
 
-    const takeLimit = limit ? parseInt(limit) : (search ? undefined : 50);
+    const takeLimit = limit ? parseInt(limit) : undefined;
 
     const list = await prisma.buyerOrder.findMany({
       where,

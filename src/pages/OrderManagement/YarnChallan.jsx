@@ -185,8 +185,6 @@ export default function YarnChallan({ token }) {
     let url = '/api/yarn-challans';
     if (search && search.trim() !== '') {
       url += `?search=${encodeURIComponent(search.trim())}`;
-    } else {
-      url += '?limit=50';
     }
 
     fetch(url, {
@@ -211,7 +209,7 @@ export default function YarnChallan({ token }) {
     if (q) {
       toast.success(`"${q}" এর ফলাফল সরাসরি ডাটাবেজ থেকে ফেচ করা হয়েছে!`);
     } else {
-      toast.success('ডাটাবেজ থেকে সর্বশেষ ৫০ টি রেকর্ড লোড করা হয়েছে!');
+      toast.success('ডাটাবেজ থেকে সকল রেকর্ড লোড করা হয়েছে!');
     }
   };
 
@@ -555,7 +553,7 @@ export default function YarnChallan({ token }) {
             <div className="flex items-center gap-3">
               <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">ইয়ার্ন চালান তালিকা</h3>
               <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
-                {activeSearch ? `ডাটাবেজ ফলাফল: ${challans.length} টি` : `সর্বশেষ ৫০ টি রেকর্ড`}
+                {activeSearch ? `ডাটাবেজ ফলাফল: ${challans.length} টি` : `মোট রেকর্ড: ${challans.length} টি`}
               </span>
             </div>
 

@@ -61,6 +61,12 @@ const createBackupFile = async (triggerType = 'Manual', userId = null) => {
         const values = Object.values(row).map(val => {
           if (val === null || val === undefined) return 'NULL';
           if (typeof val === 'number' || typeof val === 'boolean') return val;
+          if (typeof val === 'object' && typeof val.toNumber === 'function') {
+            return val.toNumber();
+          }
+          if (typeof val === 'object' && (val.constructor?.name === 'Decimal' || typeof val.toFixed === 'function')) {
+            return val.toString();
+          }
           if (val instanceof Date) {
             return `'${val.toISOString().slice(0, 19).replace('T', ' ')}'`;
           }

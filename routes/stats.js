@@ -6,5 +6,6 @@ const authenticateToken = require('../middlewares/auth');
 router.use(authenticateToken);
 
 router.get('/', statsController.getStats);
+router.get('/monthly-style-summary', statsController.getMonthlyStyleSummary);
 
 module.exports = router;

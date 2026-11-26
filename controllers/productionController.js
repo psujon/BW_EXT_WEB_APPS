@@ -1,6 +1,16 @@
 const { prisma } = require('../db');
 const { Prisma } = require('@prisma/client');
 
+// Helper to parse positive numeric quantity (supporting Bengali digits and rejecting <= 0)
+const parsePositiveQty = (val) => {
+  if (val === null || val === undefined) return null;
+  const str = String(val).trim().replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+  if (str === '') return null;
+  const num = parseFloat(str);
+  if (isNaN(num) || num <= 0) return null;
+  return num;
+};
+
 // Determine whether Prisma Client expects card_no as String or Int
 const formatCardNoForPrisma = (empId) => {
   try {
@@ -169,11 +179,23 @@ exports.create = async (req, res) => {
     };
 
     if (Array.isArray(items) && items.length > 0) {
+      // Check each item with a card_no to ensure quantity > 0
+      for (const item of items) {
+        if (item.card_no || item.employee_id) {
+          const qty = parsePositiveQty(item.quantity);
+          if (!qty) {
+            return res.status(400).json({ 
+              message: `কার্ড নম্বর "${item.card_no || item.employee_id}" এর কোয়ান্টিটি ০ (শূন্য) বা অবৈধ! প্রোডাকশন কোয়ান্টিটি অবশ্যই ০ এর বেশি হতে হবে।` 
+            });
+          }
+        }
+      }
+
       // Batch creation for multiple card entries
-      const validItems = items.filter(item => (item.card_no || item.employee_id) && parseFloat(item.quantity) > 0);
+      const validItems = items.filter(item => (item.card_no || item.employee_id) && parsePositiveQty(item.quantity) !== null);
 
       if (validItems.length === 0) {
-        return res.status(400).json({ message: 'কমপক্ষে ১ টি বৈধ কার্ড নম্বর ও কোয়ান্টিটি প্রয়োজন!' });
+        return res.status(400).json({ message: 'কমপক্ষে ১ টি বৈধ কার্ড নম্বর ও ০ এর বেশি কোয়ান্টিটি প্রয়োজন!' });
       }
 
       const recordsData = [];
@@ -191,7 +213,7 @@ exports.create = async (req, res) => {
           color_id: parseInt(color_id),
           production_date: pDate,
           card_no: formatCardNoForPrisma(empId),
-          quantity: parseFloat(item.quantity),
+          quantity: parsePositiveQty(item.quantity),
           processed_by: userId,
           processed_date: new Date()
         });
@@ -217,8 +239,15 @@ exports.create = async (req, res) => {
         message: `${validItems.length} টি কার্ড প্রোডাকশন এন্ট্রি সফলভাবে সংরক্ষণ করা হয়েছে! (কার্ড আইডি সংরক্ষিত)`,
         count: validItems.length
       });
-    } else if ((card_no || employee_id) && quantity) {
-      // Single card entry
+    } else if (card_no || employee_id) {
+      // Single card entry - validate quantity > 0
+      const parsedQty = parsePositiveQty(quantity);
+      if (!parsedQty) {
+        return res.status(400).json({ 
+          message: 'প্রোডাকশন কোয়ান্টিটি অবশ্যই ০ (শূন্য) এর বেশি হতে হবে! ০ দিয়ে ডাটাবেজে জমা করা যাবে না।' 
+        });
+      }
+
       const empId = resolveEmployeeId(card_no, employee_id, section_id);
       if (!empId) {
         return res.status(400).json({ 
@@ -232,7 +261,7 @@ exports.create = async (req, res) => {
         color_id: parseInt(color_id),
         production_date: pDate,
         card_no: formatCardNoForPrisma(empId),
-        quantity: parseFloat(quantity),
+        quantity: parsedQty,
         processed_by: userId,
         processed_date: new Date()
       };
@@ -268,15 +297,16 @@ exports.updateQuantity = async (req, res) => {
   const { quantity } = req.body;
   const userId = req.user ? req.user.id : null;
 
-  if (quantity === undefined || isNaN(parseFloat(quantity)) || parseFloat(quantity) < 0) {
-    return res.status(400).json({ message: 'সঠিক প্রোডাকশন কোয়ান্টিটি প্রদান করুন!' });
+  const parsedQty = parsePositiveQty(quantity);
+  if (!parsedQty) {
+    return res.status(400).json({ message: 'প্রোডাকশন কোয়ান্টিটি অবশ্যই ০ (শূন্য) এর বেশি হতে হবে!' });
   }
 
   try {
     const updated = await prisma.production.update({
       where: { id: parseInt(id) },
       data: {
-        quantity: parseFloat(quantity),
+        quantity: parsedQty,
         processed_by: userId,
         processed_date: new Date()
       }

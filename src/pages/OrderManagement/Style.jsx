@@ -39,8 +39,6 @@ export default function Style({ token }) {
     let url = '/api/styles';
     if (search && search.trim() !== '') {
       url += `?search=${encodeURIComponent(search.trim())}`;
-    } else {
-      url += '?limit=50';
     }
 
     fetch(url, {
@@ -65,7 +63,7 @@ export default function Style({ token }) {
     if (q) {
       toast.success(`"${q}" এর ফলাফল সরাসরি ডাটাবেজ থেকে ফেচ করা হয়েছে!`);
     } else {
-      toast.success('ডাটাবেজ থেকে সর্বশেষ ৫০ টি রেকর্ড লোড করা হয়েছে!');
+      toast.success('ডাটাবেজ থেকে সকল রেকর্ড লোড করা হয়েছে!');
     }
   };
 
@@ -294,7 +292,7 @@ export default function Style({ token }) {
             <div className="flex items-center gap-3">
               <h3 className="text-base font-bold text-slate-100 whitespace-nowrap">চলমান স্টাইল তালিকা</h3>
               <span className="text-xs text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2.5 py-1 rounded-full font-medium">
-                {activeSearch ? `ডাটাবেজ ফলাফল: ${styles.length} টি` : `সর্বশেষ ৫০ টি রেকর্ড`}
+                {activeSearch ? `ডাটাবেজ ফলাফল: ${styles.length} টি` : `মোট রেকর্ড: ${styles.length} টি`}
               </span>
             </div>
 
